@@ -83,8 +83,8 @@ export default function Admin() {
 
   const fetchData = () => {
     setIsLoading(true);
-    const profiles = JSON.parse(localStorage.getItem('afcs_profiles') || '[]');
-    const ann = JSON.parse(localStorage.getItem('afcs_announcements') || '[]');
+    const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
+    const ann = JSON.parse(localStorage.getItem('ruby_announcements') || '[]');
     setAllProfiles(profiles);
     setAnnouncements(ann);
     setIsLoading(false);
@@ -108,7 +108,7 @@ export default function Admin() {
     const index = profiles.findIndex(p => p.id === id);
     if (index > -1) {
       profiles[index].approval_status = status;
-      localStorage.setItem('afcs_profiles', JSON.stringify(profiles));
+      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
       setAllProfiles(profiles);
       toast({ title: `User ${status}` });
     }
@@ -117,7 +117,7 @@ export default function Admin() {
   const handleDeleteProfile = (id: string) => {
     if (!window.confirm('Are you sure?')) return;
     const filtered = allProfiles.filter(p => p.id !== id);
-    localStorage.setItem('afcs_profiles', JSON.stringify(filtered));
+    localStorage.setItem('ruby_profiles', JSON.stringify(filtered));
     setAllProfiles(filtered);
     toast({ title: 'Profile deleted' });
   };
@@ -136,7 +136,7 @@ export default function Admin() {
         created_at: new Date().toISOString()
       });
     }
-    localStorage.setItem('afcs_announcements', JSON.stringify(ann));
+    localStorage.setItem('ruby_announcements', JSON.stringify(ann));
     setAnnouncements(ann);
     setNewAnnouncement({ title: '', content: '' });
     setEditingAnnouncement(null);
@@ -146,7 +146,7 @@ export default function Admin() {
 
   const handleDeleteAnnouncement = (id: string) => {
     const filtered = announcements.filter(a => a.id !== id);
-    localStorage.setItem('afcs_announcements', JSON.stringify(filtered));
+    localStorage.setItem('ruby_announcements', JSON.stringify(filtered));
     setAnnouncements(filtered);
     toast({ title: 'Announcement deleted' });
   };

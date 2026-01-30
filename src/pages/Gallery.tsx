@@ -71,8 +71,36 @@ export default function Gallery() {
 
         files.forEach(file => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviews(prev => [...prev, { file, url: reader.result as string }]);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // Larger for gallery
+                    const MAX_HEIGHT = 600;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                    setPreviews(prev => [...prev, { file, url: compressedBase64 }]);
+                };
+                img.src = event.target?.result as string;
             };
             reader.readAsDataURL(file);
         });
@@ -118,11 +146,11 @@ export default function Gallery() {
     const handleSaveCaption = () => {
         if (!editingItemId) return;
         setIsSavingCaption(true);
-        const storedGallery = JSON.parse(localStorage.getItem('afcs_gallery') || '[]');
+        const storedGallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
         const index = storedGallery.findIndex((i: any) => i.id === editingItemId);
         if (index > -1) {
             storedGallery[index].caption = editingCaption;
-            localStorage.setItem('afcs_gallery', JSON.stringify(storedGallery));
+            localStorage.setItem('ruby_gallery', JSON.stringify(storedGallery));
             fetchGallery();
             setEditingItemId(null);
             toast({ title: 'Caption updated' });
@@ -212,7 +240,7 @@ export default function Gallery() {
                     </div>
                 ) : (
                     <div className="text-center py-20 bg-muted/30 rounded-3xl border-2 border-dashed">
-                        <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-20" />
+                        <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-20" />
                         <h3 className="text-lg font-medium text-muted-foreground">No memories yet</h3>
                     </div>
                 )}

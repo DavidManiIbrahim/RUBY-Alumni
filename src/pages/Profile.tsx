@@ -68,7 +68,7 @@ export default function Profile() {
     }
 
     if (user) {
-      const storedGallery = localStorage.getItem('afcs_gallery');
+      const storedGallery = localStorage.getItem('ruby_gallery');
       if (storedGallery) {
         const items = JSON.parse(storedGallery);
         setGalleryItems(items.filter((i: any) => i.user_id === user.id));
@@ -79,12 +79,43 @@ export default function Profile() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: 'File too large', description: 'Please select an image under 5MB', variant: 'destructive' });
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: 'File too large', description: 'Please select an image under 10MB', variant: 'destructive' });
         return;
       }
+
       const reader = new FileReader();
-      reader.onloadend = () => setPreviewUrl(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          setPreviewUrl(compressedBase64);
+        };
+        img.src = event.target?.result as string;
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -110,11 +141,11 @@ export default function Profile() {
         profile_picture_url: previewUrl,
       };
 
-      const profiles = JSON.parse(localStorage.getItem('afcs_profiles') || '[]');
+      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
       const index = profiles.findIndex((p: any) => p.user_id === user.id);
       if (index > -1) profiles[index] = updatedProfile;
-      localStorage.setItem('afcs_profiles', JSON.stringify(profiles));
-      localStorage.setItem('afcs_profile', JSON.stringify(updatedProfile));
+      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
+      localStorage.setItem('ruby_profile', JSON.stringify(updatedProfile));
 
       await refreshProfile();
       toast({ title: 'Profile updated', description: 'Your profile has been updated successfully.' });
@@ -127,11 +158,11 @@ export default function Profile() {
 
   const handleUpdateGallery = () => {
     if (!editingItem) return;
-    const allItems = JSON.parse(localStorage.getItem('afcs_gallery') || '[]');
+    const allItems = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
     const index = allItems.findIndex((i: any) => i.id === editingItem.id);
     if (index > -1) {
       allItems[index].caption = editCaption;
-      localStorage.setItem('afcs_gallery', JSON.stringify(allItems));
+      localStorage.setItem('ruby_gallery', JSON.stringify(allItems));
       setGalleryItems(allItems.filter((i: any) => i.user_id === user?.id));
       setIsEditGalleryOpen(false);
       toast({ title: 'Caption updated' });
@@ -140,9 +171,9 @@ export default function Profile() {
 
   const handleDeleteGallery = () => {
     if (!deleteGalleryId) return;
-    const allItems = JSON.parse(localStorage.getItem('afcs_gallery') || '[]');
+    const allItems = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
     const filtered = allItems.filter((i: any) => i.id !== deleteGalleryId);
-    localStorage.setItem('afcs_gallery', JSON.stringify(filtered));
+    localStorage.setItem('ruby_gallery', JSON.stringify(filtered));
     setGalleryItems(filtered.filter((i: any) => i.user_id === user?.id));
     setDeleteGalleryId(null);
     toast({ title: 'Photo deleted' });

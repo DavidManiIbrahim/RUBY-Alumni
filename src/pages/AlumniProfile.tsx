@@ -23,12 +23,12 @@ export default function AlumniProfile() {
   useEffect(() => {
     const fetchData = () => {
       setIsLoading(true);
-      const profiles = JSON.parse(localStorage.getItem('afcs_profiles') || '[]');
+      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
       const found = profiles.find((p: any) => p.id === id || p.user_id === id);
       setProfile(found);
 
       if (found) {
-        const gallery = JSON.parse(localStorage.getItem('afcs_gallery') || '[]');
+        const gallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
         setGalleryItems(gallery.filter((i: any) => i.user_id === found.user_id));
       }
       setIsLoading(false);

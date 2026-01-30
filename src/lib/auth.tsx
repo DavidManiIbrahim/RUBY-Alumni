@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 export interface User {
   id: string;
   email: string;
+  role?: 'admin' | 'user';
   created_at: string;
 }
 
@@ -29,7 +30,7 @@ interface AuthContextType {
   isProfileComplete: boolean;
   hasFetchedProfile: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, isAdmin?: boolean) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -43,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load user from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('afcs_user');
-    const storedProfile = localStorage.getItem('afcs_profile');
+    const storedUser = localStorage.getItem('ruby_user');
+    const storedProfile = localStorage.getItem('ruby_profile');
 
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       // Simple localStorage-based auth
-      const users = JSON.parse(localStorage.getItem('afcs_users') || '[]');
+      const users = JSON.parse(localStorage.getItem('ruby_users') || '[]');
       const foundUser = users.find((u: any) => u.email === email && u.password === password);
 
       if (!foundUser) {
@@ -70,18 +71,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user: User = {
         id: foundUser.id,
         email: foundUser.email,
+        role: foundUser.role,
         created_at: foundUser.created_at
       };
 
       setUser(user);
-      localStorage.setItem('afcs_user', JSON.stringify(user));
+      localStorage.setItem('ruby_user', JSON.stringify(user));
 
       // Load profile
-      const profiles = JSON.parse(localStorage.getItem('afcs_profiles') || '[]');
+      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
       const userProfile = profiles.find((p: any) => p.user_id === user.id);
       if (userProfile) {
         setProfile(userProfile);
-        localStorage.setItem('afcs_profile', JSON.stringify(userProfile));
+        localStorage.setItem('ruby_profile', JSON.stringify(userProfile));
       }
 
       return { error: null };
@@ -90,9 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, fullName: string, isAdmin: boolean = false) => {
     try {
-      const users = JSON.parse(localStorage.getItem('afcs_users') || '[]');
+      const users = JSON.parse(localStorage.getItem('ruby_users') || '[]');
 
       // Check if user exists
       if (users.find((u: any) => u.email === email)) {
@@ -103,20 +105,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: crypto.randomUUID(),
         email,
         password, // In production, this should be hashed
+        role: isAdmin ? 'admin' : 'user',
         created_at: new Date().toISOString()
       };
 
       users.push(newUser);
-      localStorage.setItem('afcs_users', JSON.stringify(users));
+      localStorage.setItem('ruby_users', JSON.stringify(users));
 
       const user: User = {
         id: newUser.id,
         email: newUser.email,
+        role: newUser.role as 'admin' | 'user',
         created_at: newUser.created_at
       };
 
       setUser(user);
-      localStorage.setItem('afcs_user', JSON.stringify(user));
+      localStorage.setItem('ruby_user', JSON.stringify(user));
+
+      // Create an initial profile
+      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
+      const newProfile: Profile = {
+        user_id: user.id,
+        full_name: fullName,
+        email_address: email,
+        profile_picture_url: null,
+        bio: null,
+        graduation_year: null,
+        phone_number: null,
+        current_location: null,
+        position_held: null,
+        approval_status: isAdmin ? 'approved' : 'pending',
+        is_complete: false,
+      };
+      profiles.push(newProfile);
+      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
+      setProfile(newProfile);
+      localStorage.setItem('ruby_profile', JSON.stringify(newProfile));
 
       return { error: null };
     } catch (error) {
@@ -127,11 +151,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setUser(null);
     setProfile(null);
-    localStorage.removeItem('afcs_user');
-    localStorage.removeItem('afcs_profile');
+    localStorage.removeItem('ruby_user');
+    localStorage.removeItem('ruby_profile');
   };
 
-  const isAdmin = profile?.user_id === 'admin' || false; // Simple admin check
+  const isAdmin = user?.role === 'admin' || profile?.user_id === 'admin' || false; // Broadened admin check
   const isProfileComplete = profile?.is_complete || false;
 
   return (

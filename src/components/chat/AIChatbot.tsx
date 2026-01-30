@@ -2,14 +2,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Gem, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = "#"; // Supabase Removed
+const CHAT_URL = "#"; // Supabase Removed - Placeholder for now
 
 async function streamChat({
   messages,
@@ -26,6 +26,15 @@ async function streamChat({
   try {
     if (!sessionToken) {
       throw new Error("Please sign in to use the chat assistant");
+    }
+
+    if (CHAT_URL === "#") {
+      // Fallback for demo mode
+      setTimeout(() => {
+        onDelta("I am the RUBY Concierge. Since the backend connection is currently disabled for this demo, I can only provide this simulated response. How can I assist you with the RUBY network?");
+        onDone();
+      }, 1000);
+      return;
     }
 
     const resp = await fetch(CHAT_URL, {
@@ -103,7 +112,7 @@ async function streamChat({
 }
 
 export function AIChatbot() {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -111,11 +120,12 @@ export function AIChatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-
-
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
     }
   }, [messages]);
 
@@ -127,7 +137,7 @@ export function AIChatbot() {
 
   const sendMessage = useCallback(async () => {
     const trimmedInput = input.trim();
-    if (!trimmedInput || isLoading) return;
+    if (!trimmedInput || isLoading || !user) return;
 
     const userMsg: Message = { role: "user", content: trimmedInput };
     setMessages(prev => [...prev, userMsg]);
@@ -148,7 +158,7 @@ export function AIChatbot() {
 
     await streamChat({
       messages: [...messages, userMsg],
-      sessionToken: session?.id || '',
+      sessionToken: user.id || 'demo-token',
       onDelta: (chunk) => upsertAssistant(chunk),
       onDone: () => setIsLoading(false),
       onError: (error) => {
@@ -157,7 +167,7 @@ export function AIChatbot() {
         setIsLoading(false);
       },
     });
-  }, [input, isLoading, messages, session]);
+  }, [input, isLoading, messages, user]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -166,58 +176,52 @@ export function AIChatbot() {
     }
   };
 
-  // Don't show chatbot if not authenticated
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <>
-      {/* Floating Button */}
       <Button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg transition-all duration-300",
-          "bg-primary hover:bg-primary/90",
+          "fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-ruby transition-all duration-300",
+          "bg-gradient-ruby hover:shadow-lg hover:scale-105 active:scale-95",
           isOpen && "scale-0 opacity-0"
         )}
         size="icon"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-6 w-6 text-white" />
       </Button>
 
-      {/* Chat Window */}
       <div
         className={cn(
-          "fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] rounded-2xl border bg-background shadow-2xl transition-all duration-300",
-          "flex flex-col overflow-hidden",
-          isOpen ? "h-[500px] opacity-100" : "h-0 opacity-0 pointer-events-none"
+          "fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-3rem)] rounded-2xl border bg-background shadow-2xl transition-all duration-300 flex flex-col overflow-hidden",
+          isOpen ? "h-[500px] opacity-100 translate-y-0" : "h-0 opacity-0 translate-y-10 pointer-events-none"
         )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b bg-primary px-4 py-3 text-primary-foreground">
+        <div className="flex items-center justify-between border-b bg-gradient-ruby px-4 py-3 text-white">
           <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            <span className="font-semibold">AFCS Assistant</span>
+            <Gem className="h-5 w-5 animate-pulse" />
+            <span className="font-bold tracking-tight">RUBY Concierge</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
-            className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+            className="h-8 w-8 text-white hover:bg-white/20 rounded-full"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Messages */}
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground px-4">
-              <Bot className="h-12 w-12 mb-3 opacity-50" />
-              <p className="text-sm font-medium">Welcome to AFCS Assistant!</p>
-              <p className="text-xs mt-1">
-                Ask me about navigating the platform, finding alumni, or any other questions.
+            <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground px-4 py-10">
+              <div className="w-16 h-16 rounded-2xl bg-ruby/10 flex items-center justify-center mb-4">
+                <Gem className="h-8 w-8 text-ruby" />
+              </div>
+              <p className="text-sm font-bold text-ruby mb-1">Welcome to RUBY Concierge!</p>
+              <p className="text-xs">
+                How can I help you navigate the RUBY Network legacy today?
               </p>
             </div>
           ) : (
@@ -231,33 +235,33 @@ export function AIChatbot() {
                   )}
                 >
                   {msg.role === "assistant" && (
-                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-ruby/10 flex items-center justify-center">
+                      <Gem className="h-4 w-4 text-ruby" />
                     </div>
                   )}
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+                      "max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm",
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted rounded-bl-md"
+                        ? "bg-gradient-ruby text-white rounded-br-none"
+                        : "bg-muted text-foreground rounded-bl-none"
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   </div>
                   {msg.role === "user" && (
-                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-primary flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary-foreground" />
+                    <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-ruby flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
                     </div>
                   )}
                 </div>
               ))}
               {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
                 <div className="flex gap-2 justify-start">
-                  <div className="flex-shrink-0 h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-primary" />
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-ruby/10 flex items-center justify-center">
+                    <Gem className="h-4 w-4 text-ruby animate-pulse" />
                   </div>
-                  <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2">
+                  <div className="bg-muted rounded-2xl rounded-bl-none px-4 py-2">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 </div>
@@ -266,8 +270,7 @@ export function AIChatbot() {
           )}
         </ScrollArea>
 
-        {/* Input */}
-        <div className="border-t p-3">
+        <div className="border-t p-3 bg-muted/30">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
@@ -276,15 +279,15 @@ export function AIChatbot() {
               onKeyDown={handleKeyDown}
               placeholder="Ask me anything..."
               disabled={isLoading}
-              className="flex-1"
+              className="flex-1 rounded-full bg-background border-border shadow-inner"
             />
             <Button
               onClick={sendMessage}
               disabled={!input.trim() || isLoading}
               size="icon"
-              className="shrink-0"
+              className="shrink-0 rounded-full bg-gradient-ruby shadow-ruby translate-y-0 active:translate-y-0.5 transition-transform"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 text-white" />
             </Button>
           </div>
         </div>

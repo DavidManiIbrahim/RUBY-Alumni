@@ -51,11 +51,11 @@ export default function ResetPassword() {
 
         setIsLoading(true);
         try {
-            const users = JSON.parse(localStorage.getItem('afcs_users') || '[]');
+            const users = JSON.parse(localStorage.getItem('ruby_users') || '[]');
             const index = users.findIndex((u: any) => u.id === user?.id);
             if (index > -1) {
                 users[index].password = password; // In a real app, this should be hashed
-                localStorage.setItem('afcs_users', JSON.stringify(users));
+                localStorage.setItem('ruby_users', JSON.stringify(users));
                 toast({ title: 'Password Updated', description: 'Your password has been successfully reset.' });
                 navigate('/dashboard');
             }

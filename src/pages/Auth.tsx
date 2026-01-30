@@ -45,7 +45,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // Removed: isAdminAccount state - admin role assignment is now admin-only via RLS
+  const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Extract profile completion status to prevent redirect loops
@@ -125,7 +125,7 @@ export default function Auth() {
           setMode('signin');
         }
       } else if (mode === 'signup') {
-        const { error } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password, fullName, isAdminAccount);
         if (error) {
           if (error.message.includes('already registered')) {
             toast({
@@ -399,7 +399,7 @@ export default function Auth() {
 
                 {mode === 'signup' && (
                   <div className="flex items-center space-x-2 pb-2">
-                    {/* <Checkbox
+                    <Checkbox
                       id="isAdminAccount"
                       checked={isAdminAccount}
                       onCheckedChange={(checked) => setIsAdminAccount(checked === true)}
@@ -409,7 +409,7 @@ export default function Auth() {
                       className="text-sm font-medium leading-none cursor-pointer"
                     >
                       Sign up as Administrator
-                    </Label> */}
+                    </Label>
                   </div>
                 )}
 

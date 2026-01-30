@@ -28,7 +28,7 @@ export default function Chat() {
 
     useEffect(() => {
         const fetchMessages = () => {
-            const stored = localStorage.getItem('afcs_chat_messages');
+            const stored = localStorage.getItem('ruby_chat_messages');
             if (stored) {
                 const allMessages = JSON.parse(stored) as Message[];
                 setMessages(allMessages.filter(m => m.room_id === activeRoom));
@@ -36,7 +36,7 @@ export default function Chat() {
         };
 
         const fetchProfiles = () => {
-            const stored = localStorage.getItem('afcs_profiles');
+            const stored = localStorage.getItem('ruby_profiles');
             if (stored) {
                 const profiles = JSON.parse(stored);
                 const map: any = {};
@@ -68,8 +68,8 @@ export default function Chat() {
             created_at: new Date().toISOString()
         };
 
-        const stored = JSON.parse(localStorage.getItem('afcs_chat_messages') || '[]');
-        localStorage.setItem('afcs_chat_messages', JSON.stringify([...stored, newMsg]));
+        const stored = JSON.parse(localStorage.getItem('ruby_chat_messages') || '[]');
+        localStorage.setItem('ruby_chat_messages', JSON.stringify([...stored, newMsg]));
         setMessages(prev => [...prev, newMsg]);
         setNewMessage('');
     };
