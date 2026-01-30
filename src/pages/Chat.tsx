@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Layout } from '@/components/layout/Layout';
@@ -5,78 +6,44 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, MessageSquare } from 'lucide-react';
-
-interface Message {
-    id: string;
-    user_id: string;
-    content: string;
-    room_id: string;
-    created_at: string;
-}
+import { Send, MessageSquare, Loader2 } from 'lucide-react';
+import { useChatMessages, useProfiles } from '@/hooks/useFirebaseDB';
 
 export default function Chat() {
     const { user, profile } = useAuth();
     const [activeRoom, setActiveRoom] = useState('general');
     const [newMessage, setNewMessage] = useState('');
-    const [messages, setMessages] = useState<Message[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [authorProfiles, setAuthorProfiles] = useState<Record<string, any>>({});
 
-    const graduationYear = profile?.graduation_year?.toString();
+    const { messages, loading: messagesLoading, sendMessage } = useChatMessages(activeRoom);
+    const { profiles } = useProfiles();
+
+    const authorProfilesMap = profiles.reduce((acc: any, p) => {
+        acc[p.user_id] = p;
+        return acc;
+    }, {});
+
+    const graduationYear = (profile as any)?.graduation_year?.toString();
     const classRoomId = graduationYear ? `class_${graduationYear}` : null;
-
-    useEffect(() => {
-        const fetchMessages = () => {
-            const stored = localStorage.getItem('ruby_chat_messages');
-            if (stored) {
-                const allMessages = JSON.parse(stored) as Message[];
-                setMessages(allMessages.filter(m => m.room_id === activeRoom));
-            }
-        };
-
-        const fetchProfiles = () => {
-            const stored = localStorage.getItem('ruby_profiles');
-            if (stored) {
-                const profiles = JSON.parse(stored);
-                const map: any = {};
-                profiles.forEach((p: any) => { map[p.user_id] = p; });
-                setAuthorProfiles(map);
-            }
-        };
-
-        fetchMessages();
-        fetchProfiles();
-
-        const interval = setInterval(fetchMessages, 3000); // Poll for updates
-        return () => clearInterval(interval);
-    }, [activeRoom]);
 
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSendMessage = (e: React.FormEvent) => {
+    const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !user) return;
 
-        const newMsg: Message = {
-            id: Math.random().toString(36).substr(2, 9),
-            user_id: user.id,
-            content: newMessage.trim(),
-            room_id: activeRoom,
-            created_at: new Date().toISOString()
-        };
-
-        const stored = JSON.parse(localStorage.getItem('ruby_chat_messages') || '[]');
-        localStorage.setItem('ruby_chat_messages', JSON.stringify([...stored, newMsg]));
-        setMessages(prev => [...prev, newMsg]);
-        setNewMessage('');
-    };
-
-    const getInitials = (name: string | null | undefined) => {
-        if (!name) return 'U';
-        return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        try {
+            await sendMessage({
+                user_id: user.id,
+                content: newMessage.trim(),
+                room_id: activeRoom,
+            });
+            setNewMessage('');
+        } catch (error) {
+            console.error("Failed to send message:", error);
+        }
     };
 
     const getRoomLabel = () => activeRoom === 'general' ? 'General Chat' : `Class of ${graduationYear}`;
@@ -118,21 +85,25 @@ export default function Chat() {
                     </div>
                     <ScrollArea className="flex-1 bg-background">
                         <div className="flex flex-col p-4 space-y-3">
-                            {messages.map((item, index) => {
-                                const isMe = item.user_id === user?.id;
-                                const author = authorProfiles[item.user_id];
-                                return (
-                                    <div key={item.id} className={`flex gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`flex flex-col max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'}`}>
-                                            {!isMe && <span className="text-xs font-medium text-muted-foreground mb-1">{author?.full_name || 'Alumni'}</span>}
-                                            <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted text-foreground rounded-bl-none'}`}>
-                                                {item.content}
+                            {messagesLoading ? (
+                                <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                            ) : (
+                                messages.map((item: any) => {
+                                    const isMe = item.user_id === user?.id;
+                                    const author = authorProfilesMap[item.user_id];
+                                    return (
+                                        <div key={item.id} className={`flex gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`flex flex-col max-w-xs lg:max-w-md ${isMe ? 'items-end' : 'items-start'}`}>
+                                                {!isMe && <span className="text-xs font-medium text-muted-foreground mb-1">{author?.full_name || 'Alumni'}</span>}
+                                                <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-muted text-foreground rounded-bl-none'}`}>
+                                                    {item.content}
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground mt-0.5">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
-                                            <span className="text-[10px] text-muted-foreground mt-0.5">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })
+                            )}
                             <div ref={scrollRef} />
                         </div>
                     </ScrollArea>

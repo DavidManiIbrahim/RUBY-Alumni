@@ -1,5 +1,15 @@
-// Browser-compatible localStorage auth - NO Supabase, NO Redis
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { auth } from './firebase';
+import { profileDB } from './firebaseDB';
 
 export interface User {
   id: string;
@@ -31,6 +41,7 @@ interface AuthContextType {
   hasFetchedProfile: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, isAdmin?: boolean) => Promise<{ error: Error | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -42,50 +53,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [hasFetchedProfile, setHasFetchedProfile] = useState(false);
 
-  // Load user from localStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('ruby_user');
-    const storedProfile = localStorage.getItem('ruby_profile');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        const user: User = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          role: 'user', // Default, will be updated by profile
+          created_at: firebaseUser.metadata.creationTime || new Date().toISOString(),
+        };
+        setUser(user);
 
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    if (storedProfile) {
-      setProfile(JSON.parse(storedProfile));
-    }
+        // Fetch profile
+        try {
+          const userProfile = await profileDB.getByUserId(firebaseUser.uid);
+          if (userProfile) {
+            // Adapt Firestore profile to Auth Profile type
+            const adaptedProfile: Profile = {
+              user_id: firebaseUser.uid,
+              full_name: userProfile.full_name,
+              email_address: userProfile.email_address || firebaseUser.email,
+              profile_picture_url: userProfile.profile_picture_url,
+              bio: userProfile.bio,
+              graduation_year: userProfile.graduation_year,
+              phone_number: userProfile.phone_number,
+              current_location: userProfile.current_location,
+              position_held: userProfile.position_held,
+              approval_status: userProfile.approval_status,
+              is_complete: !!(userProfile.full_name && userProfile.graduation_year),
+            };
+            setProfile(adaptedProfile);
 
-    setHasFetchedProfile(true);
-    setLoading(false);
+            // Update user role if profile specifies it (Firestore profile could have a role field)
+            if ((userProfile as any).role) {
+              setUser(prev => prev ? { ...prev, role: (userProfile as any).role } : null);
+            } else if (adaptedProfile.approval_status === 'approved' && (userProfile as any).isAdmin) {
+              setUser(prev => prev ? { ...prev, role: 'admin' } : null);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
+      } else {
+        // User is signed out
+        setUser(null);
+        setProfile(null);
+      }
+      setHasFetchedProfile(true);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Simple localStorage-based auth
-      const users = JSON.parse(localStorage.getItem('ruby_users') || '[]');
-      const foundUser = users.find((u: any) => u.email === email && u.password === password);
-
-      if (!foundUser) {
-        return { error: new Error('Invalid email or password') };
-      }
-
-      const user: User = {
-        id: foundUser.id,
-        email: foundUser.email,
-        role: foundUser.role,
-        created_at: foundUser.created_at
-      };
-
-      setUser(user);
-      localStorage.setItem('ruby_user', JSON.stringify(user));
-
-      // Load profile
-      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-      const userProfile = profiles.find((p: any) => p.user_id === user.id);
-      if (userProfile) {
-        setProfile(userProfile);
-        localStorage.setItem('ruby_profile', JSON.stringify(userProfile));
-      }
-
+      await signInWithEmailAndPassword(auth, email, password);
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -94,53 +118,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string, isAdmin: boolean = false) => {
     try {
-      const users = JSON.parse(localStorage.getItem('ruby_users') || '[]');
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Check if user exists
-      if (users.find((u: any) => u.email === email)) {
-        return { error: new Error('User already exists') };
-      }
-
-      const newUser = {
-        id: crypto.randomUUID(),
-        email,
-        password, // In production, this should be hashed
-        role: isAdmin ? 'admin' : 'user',
-        created_at: new Date().toISOString()
-      };
-
-      users.push(newUser);
-      localStorage.setItem('ruby_users', JSON.stringify(users));
-
-      const user: User = {
-        id: newUser.id,
-        email: newUser.email,
-        role: newUser.role as 'admin' | 'user',
-        created_at: newUser.created_at
-      };
-
-      setUser(user);
-      localStorage.setItem('ruby_user', JSON.stringify(user));
-
-      // Create an initial profile
-      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-      const newProfile: Profile = {
-        user_id: user.id,
+      // Create profile in Firestore
+      const newProfile = {
+        user_id: firebaseUser.uid,
         full_name: fullName,
         email_address: email,
-        profile_picture_url: null,
-        bio: null,
-        graduation_year: null,
-        phone_number: null,
-        current_location: null,
-        position_held: null,
         approval_status: isAdmin ? 'approved' : 'pending',
         is_complete: false,
+        isAdmin: isAdmin,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
-      profiles.push(newProfile);
-      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
-      setProfile(newProfile);
-      localStorage.setItem('ruby_profile', JSON.stringify(newProfile));
+
+      await profileDB.create(newProfile);
 
       return { error: null };
     } catch (error) {
@@ -148,14 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signOut = async () => {
-    setUser(null);
-    setProfile(null);
-    localStorage.removeItem('ruby_user');
-    localStorage.removeItem('ruby_profile');
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
   };
 
-  const isAdmin = user?.role === 'admin' || profile?.user_id === 'admin' || false; // Broadened admin check
+  const signOut = async () => {
+    await firebaseSignOut(auth);
+  };
+
+  const isAdmin = user?.role === 'admin' || (profile as any)?.isAdmin || false;
   const isProfileComplete = profile?.is_complete || false;
 
   return (
@@ -169,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hasFetchedProfile,
         signIn,
         signUp,
+        resetPassword,
         signOut,
       }}
     >

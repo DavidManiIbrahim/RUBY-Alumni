@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -17,116 +18,72 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
 import { Gem, Plus, Loader2, Trash2, Camera, Edit2, Eye, X } from 'lucide-react';
-
-interface GalleryItem {
-    id: string;
-    image_url: string;
-    caption: string | null;
-    user_id: string;
-    created_at: string;
-    full_name?: string;
-}
+import { useGallery, useProfiles } from '@/hooks/useFirebaseDB';
+import { firebaseStorage } from '@/lib/firebaseStorage';
 
 export default function Gallery() {
     const { user, profile } = useAuth();
     const { toast } = useToast();
-    const [items, setItems] = useState<GalleryItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const { gallery: items, loading: isLoading, refetch, createGalleryItem, updateGalleryItem, deleteGalleryItem } = useGallery();
+    const { profiles } = useProfiles();
+
     const [isUploading, setIsUploading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    const [previews, setPreviews] = useState<{ file: File; url: string }[]>([]);
+    const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+    const [previews, setPreviews] = useState<string[]>([]);
     const [caption, setCaption] = useState('');
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editingCaption, setEditingCaption] = useState('');
     const [isSavingCaption, setIsSavingCaption] = useState(false);
-    const [viewingItem, setViewingItem] = useState<GalleryItem | null>(null);
+    const [viewingItem, setViewingItem] = useState<any | null>(null);
 
-    const fetchGallery = () => {
-        setIsLoading(true);
-        const storedGallery = localStorage.getItem('ruby_gallery');
-        if (storedGallery) {
-            const data = JSON.parse(storedGallery) as GalleryItem[];
-            // Mock profile join
-            const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-            const profilesMap = new Map(profiles.map((p: any) => [p.user_id, p.full_name]));
+    const profilesMap = new Map(profiles.map((p: any) => [p.user_id, p.full_name]));
 
-            const enriched = data.map(item => ({
-                ...item,
-                full_name: profilesMap.get(item.user_id) || 'Alumni'
-            })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-            setItems(enriched);
-        }
-        setIsLoading(false);
-    };
-
-    useEffect(() => {
-        fetchGallery();
-    }, []);
+    const enrichedItems = items.map(item => ({
+        ...item,
+        full_name: profilesMap.get(item.user_id) || 'Alumni'
+    }));
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
+        setFilesToUpload(prev => [...prev, ...files]);
+
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // Larger for gallery
-                    const MAX_HEIGHT = 600;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
-                    }
-
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx?.drawImage(img, 0, 0, width, height);
-
-                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                    setPreviews(prev => [...prev, { file, url: compressedBase64 }]);
-                };
-                img.src = event.target?.result as string;
+                setPreviews(prev => [...prev, event.target?.result as string]);
             };
             reader.readAsDataURL(file);
         });
     };
 
     const handleUpload = async () => {
-        if (previews.length === 0 || !user) return;
+        if (filesToUpload.length === 0 || !user) return;
         setIsUploading(true);
 
         try {
-            const newItems = previews.map(p => ({
-                id: Math.random().toString(36).substr(2, 9),
-                user_id: user.id,
-                image_url: p.url,
-                caption: caption || null,
-                created_at: new Date().toISOString()
-            }));
+            for (const file of filesToUpload) {
+                const { data, error } = await firebaseStorage.upload('gallery', file, user.id);
+                if (error) throw error;
+                if (data) {
+                    await createGalleryItem({
+                        user_id: user.id,
+                        url: data.url,
+                        caption: caption || null,
+                        media_type: 'image',
+                    });
+                }
+            }
 
-            const gallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-            localStorage.setItem('ruby_gallery', JSON.stringify([...gallery, ...newItems]));
-
-            toast({ title: 'Success', description: `${previews.length} image(s) uploaded.` });
+            toast({ title: 'Success', description: `${filesToUpload.length} image(s) uploaded.` });
             setIsDialogOpen(false);
+            setFilesToUpload([]);
             setPreviews([]);
             setCaption('');
-            fetchGallery();
+            refetch();
         } catch (error: any) {
             toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
         } finally {
@@ -134,28 +91,30 @@ export default function Gallery() {
         }
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (!window.confirm('Delete this image?')) return;
-        const gallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-        const updated = gallery.filter((i: any) => i.id !== id);
-        localStorage.setItem('ruby_gallery', JSON.stringify(updated));
-        fetchGallery();
-        toast({ title: 'Deleted' });
+        try {
+            // In a full implementation, we'd also delete the file from storage
+            // For now, just remove DB record
+            await deleteGalleryItem(id);
+            toast({ title: 'Deleted' });
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        }
     };
 
-    const handleSaveCaption = () => {
+    const handleSaveCaption = async () => {
         if (!editingItemId) return;
         setIsSavingCaption(true);
-        const storedGallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-        const index = storedGallery.findIndex((i: any) => i.id === editingItemId);
-        if (index > -1) {
-            storedGallery[index].caption = editingCaption;
-            localStorage.setItem('ruby_gallery', JSON.stringify(storedGallery));
-            fetchGallery();
+        try {
+            await updateGalleryItem(editingItemId, { caption: editingCaption });
             setEditingItemId(null);
             toast({ title: 'Caption updated' });
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSavingCaption(false);
         }
-        setIsSavingCaption(false);
     };
 
     return (
@@ -185,10 +144,13 @@ export default function Gallery() {
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto">
-                                        {previews.map((p, i) => (
+                                        {previews.map((url, i) => (
                                             <div key={i} className="relative aspect-square rounded-lg overflow-hidden border">
-                                                <img src={p.url} className="w-full h-full object-cover" />
-                                                <button onClick={() => setPreviews(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1"><Trash2 className="h-3 w-3" /></button>
+                                                <img src={url} className="w-full h-full object-cover" />
+                                                <button onClick={() => {
+                                                    setPreviews(prev => prev.filter((_, idx) => idx !== i));
+                                                    setFilesToUpload(prev => prev.filter((_, idx) => idx !== i));
+                                                }} className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1"><Trash2 className="h-3 w-3" /></button>
                                             </div>
                                         ))}
                                     </div>
@@ -200,7 +162,7 @@ export default function Gallery() {
                             </div>
                             <DialogFooter>
                                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                                <Button variant="gold" onClick={handleUpload} disabled={previews.length === 0 || isUploading}>
+                                <Button variant="gold" onClick={handleUpload} disabled={filesToUpload.length === 0 || isUploading}>
                                     {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Upload'}
                                 </Button>
                             </DialogFooter>
@@ -212,12 +174,12 @@ export default function Gallery() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map(i => <Skeleton key={i} className="aspect-square rounded-xl" />)}
                     </div>
-                ) : items.length > 0 ? (
+                ) : enrichedItems.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {items.map((item) => (
+                        {enrichedItems.map((item: any) => (
                             <Card key={item.id} className="group overflow-hidden border-none shadow-elevated transition-all hover:scale-[1.02]">
                                 <div className="relative aspect-square overflow-hidden bg-muted">
-                                    <img src={item.image_url} alt={item.caption || 'Gallery'} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                    <img src={item.url} alt={item.caption || 'Gallery'} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                         <Button variant="secondary" size="icon" onClick={() => setViewingItem(item)}><Eye className="h-4 w-4" /></Button>
                                         {user?.id === item.user_id && (
@@ -249,7 +211,7 @@ export default function Gallery() {
             {viewingItem && (
                 <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center p-4">
                     <button onClick={() => setViewingItem(null)} className="absolute top-4 right-4 text-white hover:bg-white/20 p-2 rounded-full"><X className="h-8 w-8" /></button>
-                    <img src={viewingItem.image_url} className="max-w-full max-h-full object-contain" />
+                    <img src={viewingItem.url} className="max-w-full max-h-full object-contain" />
                 </div>
             )}
 

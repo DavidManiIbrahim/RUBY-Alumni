@@ -1,54 +1,27 @@
-import { useEffect, useState } from 'react';
+
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Layout } from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Megaphone, Calendar } from 'lucide-react';
-
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-}
+import { Megaphone, Calendar, Loader2 } from 'lucide-react';
+import { useAnnouncements } from '@/hooks/useFirebaseDB';
 
 export default function Announcements() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { announcements, loading: announcementsLoading } = useAnnouncements();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
-  }, [user, loading, navigate]);
+    if (!authLoading && !user) navigate('/auth');
+  }, [user, authLoading, navigate]);
 
-  useEffect(() => {
-    // Load announcements from localStorage
-    const loadAnnouncements = () => {
-      const stored = localStorage.getItem('ruby_announcements');
-      if (stored) {
-        const data = JSON.parse(stored);
-        setAnnouncements(data.sort((a: Announcement, b: Announcement) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ));
-      }
-      setIsLoading(false);
-    };
-
-    if (user) {
-      loadAnnouncements();
-    }
-  }, [user]);
-
-  if (loading) {
+  if (authLoading) {
     return (
       <Layout showFooter={false}>
         <div className="container py-12 flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </Layout>
     );
@@ -64,7 +37,7 @@ export default function Announcements() {
               Stay updated with the latest updates from the RUBY collective
             </p>
           </div>
-          {user && (
+          {isAdmin && (
             <Button
               variant="outline"
               onClick={() => navigate('/admin')}
@@ -76,7 +49,7 @@ export default function Announcements() {
           )}
         </div>
 
-        {isLoading ? (
+        {announcementsLoading ? (
           <div className="space-y-6">
             {[...Array(3)].map((_, i) => (
               <Card key={i} className="animate-pulse">

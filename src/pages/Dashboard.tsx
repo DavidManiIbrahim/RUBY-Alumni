@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Shield
 } from 'lucide-react';
+import { useAnnouncements, useProfiles } from '@/hooks/useFirebaseDB';
 
 interface Announcement {
   id: string;
@@ -26,7 +27,8 @@ interface Announcement {
 export default function Dashboard() {
   const { user, loading, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const { announcements } = useAnnouncements(3);
+  const { profiles } = useProfiles();
   const [stats, setStats] = useState({ totalAlumni: 0 });
 
   useEffect(() => {
@@ -36,24 +38,10 @@ export default function Dashboard() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      // Load announcements from localStorage
-      const storedAnnouncements = localStorage.getItem('ruby_announcements');
-      if (storedAnnouncements) {
-        const data = JSON.parse(storedAnnouncements);
-        setAnnouncements(data.sort((a: any, b: any) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ).slice(0, 3));
-      }
-
-      // Load stats from localStorage
-      const storedProfiles = localStorage.getItem('ruby_profiles');
-      if (storedProfiles) {
-        const profiles = JSON.parse(storedProfiles);
-        setStats({ totalAlumni: profiles.length });
-      }
+    if (profiles.length > 0) {
+      setStats({ totalAlumni: profiles.length });
     }
-  }, [user]);
+  }, [profiles]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';

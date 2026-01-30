@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, MapPin, GraduationCap, User, Filter, BookOpen } from 'lucide-react';
 
+import { useProfiles } from '@/hooks/useFirebaseDB';
+
 interface Profile {
   id: string;
   user_id: string;
@@ -22,38 +24,29 @@ interface Profile {
 }
 
 export default function Directory() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [years, setYears] = useState<number[]>([]);
-  const [profilesLoading, setProfilesLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      // Load profiles from localStorage
-      const storedProfiles = localStorage.getItem('ruby_profiles');
-      if (storedProfiles) {
-        const data = JSON.parse(storedProfiles) as Profile[];
-        setAllProfiles(data);
-
-        // Extract unique years
-        const uniqueYears = Array.from(new Set(data.map(p => p.graduation_year).filter(Boolean))) as number[];
-        setYears(uniqueYears.sort((a, b) => b - a));
-      }
-      setProfilesLoading(false);
+    if (allProfiles.length > 0) {
+      // Extract unique years
+      const uniqueYears = Array.from(new Set(allProfiles.map(p => p.graduation_year).filter(Boolean))) as number[];
+      setYears(uniqueYears.sort((a, b) => b - a));
     }
-  }, [user]);
+  }, [allProfiles]);
 
   useEffect(() => {
     let filtered = [...allProfiles];
@@ -90,7 +83,7 @@ export default function Directory() {
     currentPage * itemsPerPage
   );
 
-  if (loading || !user) {
+  if (authLoading || !user) {
     return (
       <Layout showFooter={false}>
         <div className="container py-12 flex items-center justify-center min-h-[60vh]">

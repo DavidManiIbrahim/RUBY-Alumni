@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, Profile } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Gem, Loader2, Upload, User } from 'lucide-react';
+import { Gem, Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { profileDB } from '@/lib/firebaseDB';
+import { firebaseStorage } from '@/lib/firebaseStorage';
 
 type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
 
@@ -38,13 +41,14 @@ export default function ProfileSetup() {
   const [email, setEmail] = useState(profile?.email_address || user?.email || '');
   const [graduationYear, setGraduationYear] = useState<string>(profile?.graduation_year?.toString() || '');
   const [positionHeld, setPositionHeld] = useState(profile?.position_held || '');
-  const [gender, setGender] = useState<Gender | ''>((profile?.gender as Gender | null) || '');
+  const [gender, setGender] = useState<Gender | ''>((profile?.gender as any) || '');
   const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || '');
   const [currentLocation, setCurrentLocation] = useState(profile?.current_location || '');
   const [bio, setBio] = useState(profile?.bio || '');
   const [university, setUniversity] = useState(profile?.university || '');
   const [courseStudied, setCourseStudied] = useState(profile?.course_studied || '');
   const [previewUrl, setPreviewUrl] = useState<string | null>(profile?.profile_picture_url || null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -62,42 +66,8 @@ export default function ProfileSetup() {
         toast({ title: 'File too large', description: 'Please select an image under 10MB', variant: 'destructive' });
         return;
       }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // Resize logic
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 400;
-          const MAX_HEIGHT = 400;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // Get compressed base64
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-          setPreviewUrl(compressedBase64);
-        };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -135,7 +105,7 @@ export default function ProfileSetup() {
       return;
     }
 
-    if (!previewUrl) {
+    if (!previewUrl && !selectedFile) {
       toast({ title: 'Profile picture required', description: 'Please upload a photo.', variant: 'destructive' });
       return;
     }
@@ -143,7 +113,15 @@ export default function ProfileSetup() {
     setIsLoading(true);
 
     try {
-      const newProfile: any = {
+      let profile_picture_url = previewUrl;
+
+      if (selectedFile) {
+        const { data, error: uploadError } = await firebaseStorage.upload('profile-pictures', selectedFile, user.id);
+        if (uploadError) throw uploadError;
+        profile_picture_url = data?.url || null;
+      }
+
+      const updatedProfile: any = {
         user_id: user.id,
         full_name: fullName,
         email_address: email,
@@ -155,27 +133,20 @@ export default function ProfileSetup() {
         bio: bio,
         university: university,
         course_studied: courseStudied,
-        profile_picture_url: previewUrl,
+        profile_picture_url,
         is_complete: true,
-        approval_status: 'approved' // Auto-approve for localStorage demo
+        approval_status: 'approved' // Auto-approve for now
       };
 
-      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-      const index = profiles.findIndex((p: any) => p.user_id === user.id);
-
-      if (index > -1) {
-        profiles[index] = newProfile;
-      } else {
-        profiles.push(newProfile);
-      }
-
-      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
-      localStorage.setItem('ruby_profile', JSON.stringify(newProfile));
+      await profileDB.create(updatedProfile);
 
       toast({ title: 'Profile saved!', description: 'Your profile has been updated successfully.' });
 
-      // Force reload to get fresh profile from localStorage
-      window.location.href = '/dashboard';
+      // Delay navigation a bit to let Firestore consistency catch up if needed
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
+
     } catch (error: any) {
       toast({ title: 'Error', description: error.message || 'Failed to save profile', variant: 'destructive' });
     } finally {
@@ -219,7 +190,7 @@ export default function ProfileSetup() {
                     <Avatar className="h-24 w-24 border-2 border-border shadow-sm transition-all group-hover:border-primary/50 group-hover:shadow-md">
                       <AvatarImage src={previewUrl || undefined} className="object-cover w-full h-full" />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                        {fullName ? getInitials(fullName) : <User className="h-8 w-8" />}
+                        {fullName ? getInitials(fullName) : <UserIcon className="h-8 w-8" />}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
