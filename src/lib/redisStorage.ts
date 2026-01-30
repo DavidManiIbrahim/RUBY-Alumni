@@ -1,15 +1,3 @@
-/**
- * File Storage using Base64 encoding in Redis
- * Alternative to Supabase Storage
- * 
- * Note: For production, consider using:
- * - AWS S3
- * - Cloudinary
- * - ImgBB
- * - Firebase Storage
- * 
- * This implementation stores files as base64 in Redis (suitable for small files)
- */
 
 import { redisClient } from './redis';
 import { generateId } from './redisDB';
