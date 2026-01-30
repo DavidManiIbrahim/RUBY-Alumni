@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { logAppEvent } from '@/lib/telemetry';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Layout } from '@/components/layout/Layout';
@@ -9,9 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, GraduationCap, User, Users, Filter, BookOpen } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { Search, MapPin, GraduationCap, User, Filter, BookOpen } from 'lucide-react';
 
 interface Profile {
   id: string;
@@ -19,11 +16,9 @@ interface Profile {
   full_name: string | null;
   graduation_year: number | null;
   profile_picture_url: string | null;
-  gender: string | null;
   current_location: string | null;
   bio: string | null;
   university: string | null;
-  course_studied: string | null;
 }
 
 export default function Directory() {
@@ -33,6 +28,10 @@ export default function Directory() {
   const [yearFilter, setYearFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [years, setYears] = useState<number[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -41,77 +40,37 @@ export default function Directory() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user && (searchQuery || yearFilter !== 'all')) {
-      const timer = setTimeout(() => {
-        void logAppEvent({
-          userId: user.id,
-          eventName: 'directory_search',
-          path: '/directory',
-          metadata: { query: searchQuery, year: yearFilter }
-        });
-      }, 1000); // Debounce logging
-      return () => clearTimeout(timer);
+    if (user) {
+      // Load profiles from localStorage
+      const storedProfiles = localStorage.getItem('ruby_profiles');
+      if (storedProfiles) {
+        const data = JSON.parse(storedProfiles) as Profile[];
+        setAllProfiles(data);
+
+        // Extract unique years
+        const uniqueYears = Array.from(new Set(data.map(p => p.graduation_year).filter(Boolean))) as number[];
+        setYears(uniqueYears.sort((a, b) => b - a));
+      }
+      setProfilesLoading(false);
     }
-  }, [searchQuery, yearFilter, user]);
+  }, [user]);
 
-  const { data: result, isLoading: profilesLoading } = useQuery({
-    queryKey: ['alumni-profiles', searchQuery, yearFilter, currentPage],
-    queryFn: async () => {
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
+  useEffect(() => {
+    let filtered = [...allProfiles];
 
-      // Query profiles table directly to ensure visibility
-      let query = supabase
-        .from('profiles')
-        .select(`
-          id,
-          user_id,
-          full_name,
-          graduation_year,
-          profile_picture_url,
-          gender,
-          current_location,
-          bio,
-          university,
-          course_studied
-        `, { count: 'exact' })
-        .order('graduation_year', { ascending: false });
+    if (searchQuery) {
+      filtered = filtered.filter(p =>
+        p.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
 
-      if (searchQuery) {
-        query = query.ilike('full_name', `%${searchQuery}%`);
-      }
+    if (yearFilter !== 'all') {
+      filtered = filtered.filter(p => p.graduation_year === parseInt(yearFilter));
+    }
 
-      if (yearFilter && yearFilter !== 'all') {
-        query = query.eq('graduation_year', parseInt(yearFilter));
-      }
-
-      const { data, count, error } = await query.range(from, to);
-
-      if (error) throw error;
-      return { data: data as Profile[], count: count || 0 };
-    },
-    enabled: !!user,
-  });
-
-  const profiles = result?.data || [];
-  const totalCount = result?.count || 0;
-
-  const { data: years } = useQuery({
-    queryKey: ['graduation-years'],
-    queryFn: async () => {
-      // Use profiles table directly
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('graduation_year')
-        .order('graduation_year', { ascending: false });
-
-      if (error) throw error;
-
-      const uniqueYears = [...new Set(data.map(p => p.graduation_year).filter(Boolean))];
-      return uniqueYears;
-    },
-    enabled: !!user,
-  });
+    setProfiles(filtered);
+    setCurrentPage(1);
+  }, [searchQuery, yearFilter, allProfiles]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -124,9 +83,12 @@ export default function Directory() {
       .slice(0, 2);
   };
 
+  const totalCount = profiles.length;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
-  // No need to slice locally anymore
-  const paginatedProfiles = profiles;
+  const paginatedProfiles = profiles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   if (loading || !user) {
     return (
@@ -138,44 +100,35 @@ export default function Directory() {
     );
   }
 
-
   return (
     <Layout showFooter={false}>
       <div className="container py-8 lg:py-12">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="font-display text-3xl lg:text-4xl font-bold mb-2">Alumni Directory</h1>
           <p className="text-muted-foreground">
-            Connect with fellow alumni from RUBY Peculiar College
+            Connect with fellow alumni from AFCS
           </p>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by name..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={yearFilter} onValueChange={(value) => {
-              setYearFilter(value);
-              setCurrentPage(1);
-            }}>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by year" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
-                {years?.map((year) => (
+                {years.map((year) => (
                   <SelectItem key={year} value={year.toString()}>
                     Class of {year}
                   </SelectItem>
@@ -185,12 +138,10 @@ export default function Directory() {
           </div>
         </div>
 
-        {/* Results count */}
         <p className="text-sm text-muted-foreground mb-6">
           {totalCount} alumni found
         </p>
 
-        {/* Alumni Grid */}
         {profilesLoading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
@@ -239,18 +190,12 @@ export default function Directory() {
                           {profile.current_location}
                         </p>
                       )}
-                      {profile.bio && (
-                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                          {profile.bio}
-                        </p>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 mt-8">
                 <Button

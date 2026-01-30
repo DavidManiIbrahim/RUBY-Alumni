@@ -29,7 +29,7 @@ export default function Announcements() {
   useEffect(() => {
     // Load announcements from localStorage
     const loadAnnouncements = () => {
-      const stored = localStorage.getItem('afcs_announcements');
+      const stored = localStorage.getItem('ruby_announcements');
       if (stored) {
         const data = JSON.parse(stored);
         setAnnouncements(data.sort((a: Announcement, b: Announcement) =>
@@ -61,7 +61,7 @@ export default function Announcements() {
           <div>
             <h1 className="font-display text-3xl lg:text-4xl font-bold mb-2">Announcements</h1>
             <p className="text-muted-foreground">
-              Stay updated with the latest news from AFCS
+              Stay updated with the latest updates from the RUBY collective
             </p>
           </div>
           {user && (
@@ -131,7 +131,7 @@ export default function Announcements() {
               <Megaphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="font-semibold text-lg mb-2">No announcements yet</h3>
               <p className="text-muted-foreground">
-                Check back later for updates from the AFCS community.
+                Check back later for updates from the RUBY collective.
               </p>
             </CardContent>
           </Card>

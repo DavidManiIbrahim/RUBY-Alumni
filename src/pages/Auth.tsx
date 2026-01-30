@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Gem, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { Link } from 'react-router-dom';
@@ -142,7 +142,7 @@ export default function Auth() {
           }
         } else {
           toast({
-            title: 'Welcome to AFCS!',
+            title: 'Welcome to RUBY!',
             description: 'Account created successfully. Complete your profile to continue.',
           });
           if (rememberMe) {
@@ -205,24 +205,23 @@ export default function Auth() {
 
         <div className="relative flex flex-col items-center justify-center w-full p-12 text-primary-foreground">
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <div className="h-20 w-20 rounded-xl bg-gradient-gold flex items-center justify-center shadow-gold">
-              {/* <GraduationCap className="h-9 w-9 text-navy-dark" /> */}
-              {/* <img src="/wchs logo-white.png" alt="" /> */}
+            <div className="h-20 w-20 rounded-2xl bg-gradient-ruby flex items-center justify-center shadow-ruby rotate-3">
+              <Gem className="h-10 w-10 text-white" />
             </div>
           </Link>
 
-          <h1 className="font-display text-4xl font-bold text-center mb-4 dark:text-white">
-            Welcome to AFCS
+          <h1 className="font-display text-4xl font-black text-center mb-4 text-white">
+            Ascend to RUBY
           </h1>
-          <p className="text-center text-primary-foreground/80 max-w-md dark:text-white">
-            AirForce Comprehensive yola Ex Airborne - Where alumni connect,
-            network, and build lasting relationships.
+          <p className="text-center text-white/80 max-w-md">
+            The RUBY Alumni Network - Where the distinguished reconnect,
+            empower, and lead.
           </p>
 
           <div className="absolute bottom-12 left-12 right-12">
-            <blockquote className="border-l-4 border-gold pl-4">
-              <p className="italic text-primary-foreground/80 dark:text-white">
-                "Once a Winner, always a Winner."
+            <blockquote className="border-l-4 border-ruby-light pl-4">
+              <p className="italic text-white/80">
+                "A legacy that never fades."
               </p>
             </blockquote>
           </div>
@@ -233,13 +232,11 @@ export default function Auth() {
       <div className="flex-1 flex items-center justify-center p-8 bg-background inset-0 bg-cover bg-center bg-no-repeat">
         <div className="w-full max-w-md ">
           {/* Mobile logo */}
-          <Link to="/" className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="h-12 w-12 rounded-lg bg-gradient-navy text-border-white flex items-center justify-center">
-              {/* <GraduationCap className="h-7 w-7 text-gold" /> */}
-              {/* <br /> */}
-              {/* <img src="/wchs logo-white.png" alt="" /> */}
-              {/* <span className="font-display center text-2xl bg-blur  font-bold">WOSA</span> */}
+          <Link to="/" className="lg:hidden flex items-center justify-center gap-3 mb-8">
+            <div className="h-12 w-12 rounded-xl bg-gradient-ruby flex items-center justify-center shadow-ruby">
+              <Gem className="h-6 w-6 text-white" />
             </div>
+            <span className="font-display text-2xl font-black text-gradient-ruby">RUBY</span>
           </Link>
 
           <Card className="border-0 shadow-elevated">
@@ -250,7 +247,7 @@ export default function Auth() {
               </CardTitle>
               <CardDescription>
                 {mode === 'signup'
-                  ? 'Enter your details to join the AFCS community'
+                  ? 'Enter your details to join the RUBY community'
                   : mode === 'forgot'
                     ? 'Enter your email and we\'ll send you a reset link'
                     : 'Enter your credentials to access your account'}

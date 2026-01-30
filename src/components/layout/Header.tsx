@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
-import { GraduationCap, Menu, X, LogOut, User, Shield, Users, Megaphone, Image as ImageIcon, MessageSquare, HomeIcon, Moon, Sun } from 'lucide-react';
+import { GraduationCap, Menu, X, LogOut, User, Shield, Users, Megaphone, Image as ImageIcon, MessageSquare, HomeIcon, Moon, Sun, Gem } from 'lucide-react';
 import { useState } from 'react';
 import {
   DropdownMenu,
@@ -53,15 +53,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-navy">
-            {/* <img src="/wchs logo-white.png" alt="logo" /> */}
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-ruby shadow-ruby rotate-3 group-hover:rotate-0 transition-transform duration-300">
+            <Gem className="h-6 w-6 text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="font-display font-ariel text-xl font-bold text-foreground leading-none">
-              AFCS
+            <span className="font-display text-2xl font-black text-gradient-ruby tracking-tighter leading-none">
+              RUBY
             </span>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">AirForce Comprehensive yola <br /> Ex Airborne</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.2em] leading-tight">Alumni Network</p>
           </div>
         </Link>
 
@@ -188,7 +188,7 @@ export function Header() {
                 Sign In
               </Button>
               <Button variant="gold" onClick={() => navigate('/auth?mode=signup')}>
-                Join AFCS
+                Join RUBY
               </Button>
             </div>
           )}
@@ -272,7 +272,7 @@ export function Header() {
                   Sign In
                 </Button>
                 <Button variant="gold" onClick={() => { navigate('/auth?mode=signup'); setMobileMenuOpen(false); }}>
-                  Join AFCS
+                  Join RUBY
                 </Button>
               </>
             )}

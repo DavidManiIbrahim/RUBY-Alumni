@@ -1,31 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { useAuth, Profile } from '@/lib/auth';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Users,
   Megaphone,
   User,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   ArrowRight,
   GraduationCap,
   MessageSquare,
   Image as ImageIcon,
   Shield
 } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+}
 
 export default function Dashboard() {
-  const { user, loading, profile, approvalStatus, isAdmin } = useAuth();
+  const { user, loading, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [stats, setStats] = useState({ totalAlumni: 0 });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -33,54 +35,25 @@ export default function Dashboard() {
     }
   }, [user, loading, navigate]);
 
-  const queryClient = useQueryClient();
-
   useEffect(() => {
-    const channel = supabase
-      .channel('public:announcements')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['recent-announcements'] });
-      })
-      .subscribe();
+    if (user) {
+      // Load announcements from localStorage
+      const storedAnnouncements = localStorage.getItem('ruby_announcements');
+      if (storedAnnouncements) {
+        const data = JSON.parse(storedAnnouncements);
+        setAnnouncements(data.sort((a: any, b: any) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ).slice(0, 3));
+      }
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  // Users can browse the dashboard without a profile - they'll set it up when they click on profile
-
-  const { data: announcements } = useQuery({
-    queryKey: ['recent-announcements'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const { count: totalAlumni } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      const pendingCount = 0; // No longer used
-
-      return {
-        totalAlumni: totalAlumni || 0,
-        pendingApprovals: pendingCount || 0,
-      };
-    },
-    enabled: !!user && isAdmin,
-  });
+      // Load stats from localStorage
+      const storedProfiles = localStorage.getItem('ruby_profiles');
+      if (storedProfiles) {
+        const profiles = JSON.parse(storedProfiles);
+        setStats({ totalAlumni: profiles.length });
+      }
+    }
+  }, [user]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -91,34 +64,6 @@ export default function Dashboard() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const getStatusBadge = () => {
-    switch (approvalStatus) {
-      case 'approved':
-        return (
-          <Badge className="bg-success text-success-foreground">
-            <CheckCircle className="h-3 w-3 md:mr-1" />
-            <span className="hidden md:inline">Approved</span>
-          </Badge>
-        );
-      case 'pending':
-        return (
-          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-            <Clock className="h-3 w-3 md:mr-1" />
-            <span className="hidden md:inline">Pending Approval</span>
-          </Badge>
-        );
-      case 'rejected':
-        return (
-          <Badge variant="destructive">
-            <XCircle className="h-3 w-3 md:mr-1" />
-            <span className="hidden md:inline">Rejected</span>
-          </Badge>
-        );
-      default:
-        return null;
-    }
   };
 
   if (loading || !user) {
@@ -149,7 +94,7 @@ export default function Dashboard() {
                   Welcome back, {profile?.full_name?.split(' ')[0] || 'Alumni'}!
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-muted-foreground">Class of {profile?.graduation_year}</span>
+                  <span className="text-muted-foreground">Class of {profile?.graduation_year || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -159,7 +104,6 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
-
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -245,28 +189,26 @@ export default function Dashboard() {
         </div>
 
         {/* Admin Stats */}
-        {
-          isAdmin && stats && (
-            <div className="mb-8">
-              <Card className="bg-gradient-navy text-primary-foreground">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 dark:text-gold-light">
-                    <Users className="h-5 w-5 " />
-                    Total Alumni
-                  </CardTitle>
-                  <p className="text-4xl font-bold dark:text-gold-light">{stats.totalAlumni}</p>
-                </CardHeader>
-              </Card>
-            </div>
-          )
-        }
+        {isAdmin && (
+          <div className="mb-8">
+            <Card className="bg-gradient-navy text-primary-foreground">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Users className="h-5 w-5" />
+                  Total Members
+                </CardTitle>
+                <p className="text-4xl font-black text-white">{stats.totalAlumni}</p>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
 
         {/* Recent Announcements */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Recent Announcements</CardTitle>
-              <CardDescription>Latest updates from AFCS</CardDescription>
+              <CardDescription>Latest updates from RUBY</CardDescription>
             </div>
             <Button variant="ghost" onClick={() => navigate('/announcements')}>
               View All
@@ -298,7 +240,7 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-      </div >
-    </Layout >
+      </div>
+    </Layout>
   );
 }

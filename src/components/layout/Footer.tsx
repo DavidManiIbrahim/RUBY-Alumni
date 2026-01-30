@@ -1,4 +1,4 @@
-import { GraduationCap } from 'lucide-react';
+import { Gem } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Footer() {
@@ -7,16 +7,15 @@ export function Footer() {
       <div className="container py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-navy">
-                {/* <GraduationCap className="h-6 w-6 text-gold" /> */}
-                {/* <img src="/wchs logo-white.png" alt="logo" /> */}
+            <Link to="/" className="flex items-center gap-3 mb-6 group">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-ruby shadow-ruby rotate-3 group-hover:rotate-0 transition-transform duration-300">
+                <Gem className="h-6 w-6 text-white" />
               </div>
-              <span className="font-display text-xl font-bold">AFCS</span>
+              <span className="font-display text-2xl font-black text-gradient-ruby tracking-tighter">RUBY</span>
             </Link>
-            <p className="text-muted-foreground max-w-sm">
-              AirForce Comprehensive yola Ex Airborne - Connecting alumni,
-              building networks, and fostering lifelong friendships.
+            <p className="text-muted-foreground max-w-sm leading-relaxed">
+              The RUBY Alumni Network - Where industry leaders and distinguished
+              graduates connect to build a lasting legacy.
             </p>
           </div>
 
@@ -35,7 +34,7 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/auth" className="hover:text-foreground transition-colors">
-                  Join AFCS
+                  Join The Collective
                 </Link>
               </li>
             </ul>
@@ -44,14 +43,14 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>AirForce Comprehensive School Yola</li>
-              <li>info@wosa.org</li>
+              <li>The RUBY Collective</li>
+              <li>concierge@ruby-network.com</li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} AFCS. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} RUBY Network. All rights reserved.</p>
           <p> Built by David Mani Ibrahim</p>
         </div>
       </div>
