@@ -65,9 +65,13 @@ export default function Gallery() {
         setIsUploading(true);
 
         try {
+            console.log('[Gallery] Starting batch upload...', filesToUpload.length);
             for (const file of filesToUpload) {
                 const { url, error } = await cloudinary.upload(file);
-                if (error) throw error;
+                if (error) {
+                    console.error('[Gallery] Cloudinary Upload Failed:', error);
+                    throw error;
+                }
                 if (url) {
                     await createGalleryItem({
                         user_id: user.id,
@@ -77,6 +81,7 @@ export default function Gallery() {
                     });
                 }
             }
+            console.log('[Gallery] All uploads completed successfully');
 
             toast({ title: 'Success', description: `${filesToUpload.length} image(s) uploaded.` });
             setIsDialogOpen(false);
@@ -85,7 +90,8 @@ export default function Gallery() {
             setCaption('');
             refetch();
         } catch (error: any) {
-            toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+            console.error('[Gallery] Critical Error:', error);
+            toast({ title: 'Upload failed', description: error.message || 'Check console for details', variant: 'destructive' });
         } finally {
             setIsUploading(false);
         }

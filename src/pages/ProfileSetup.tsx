@@ -119,9 +119,14 @@ export default function ProfileSetup() {
       let profile_picture_url = previewUrl;
 
       if (selectedFile) {
+        console.log('[ProfileSetup] Attempting Cloudinary upload...');
         const { url, error: uploadError } = await cloudinary.upload(selectedFile);
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('[ProfileSetup] Cloudinary Upload Failed:', uploadError);
+          throw new Error(`Upload Failed: ${uploadError.message || 'Check your internet connection'}`);
+        }
         profile_picture_url = url;
+        console.log('[ProfileSetup] Cloudinary Upload Success:', url);
       }
 
       const updatedProfile: any = {
@@ -138,20 +143,26 @@ export default function ProfileSetup() {
         course_studied: courseStudied,
         profile_picture_url,
         is_complete: true,
-        approval_status: 'approved' // Auto-approve for now
+        approval_status: 'approved'
       };
 
+      console.log('[ProfileSetup] Saving to Firestore...');
       await profileDB.create(updatedProfile);
+      console.log('[ProfileSetup] Firestore Save Success');
 
       toast({ title: 'Profile saved!', description: 'Your profile has been updated successfully.' });
 
-      // Delay navigation a bit to let Firestore consistency catch up if needed
       setTimeout(() => {
         window.location.href = '/dashboard';
       }, 1000);
 
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to save profile', variant: 'destructive' });
+      console.error('[ProfileSetup] Critical Error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save profile. Check console for details.',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }

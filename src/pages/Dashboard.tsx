@@ -27,9 +27,14 @@ interface Announcement {
 export default function Dashboard() {
   const { user, loading, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { announcements } = useAnnouncements(3);
-  const { profiles } = useProfiles();
+  const { announcements, error: announcementsError } = useAnnouncements(3);
+  const { profiles, error: profilesError } = useProfiles();
   const [stats, setStats] = useState({ totalAlumni: 0 });
+
+  useEffect(() => {
+    if (announcementsError) console.error('[Dashboard] Announcements error:', announcementsError);
+    if (profilesError) console.error('[Dashboard] Profiles error:', profilesError);
+  }, [announcementsError, profilesError]);
 
   useEffect(() => {
     if (!loading && !user) {

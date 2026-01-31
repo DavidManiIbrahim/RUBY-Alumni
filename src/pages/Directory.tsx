@@ -32,9 +32,15 @@ export default function Directory() {
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
-  const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
+  const { profiles: allProfiles, loading: profilesLoading, error: profilesError } = useProfiles();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [years, setYears] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (profilesError) {
+      console.error('[Directory] Error fetching profiles:', profilesError);
+    }
+  }, [profilesError]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -69,7 +75,7 @@ export default function Directory() {
 
     setProfiles(filtered);
     setCurrentPage(1);
-  }, [searchQuery, yearFilter, allProfiles]);
+  }, [searchQuery, yearFilter, locationFilter, allProfiles]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';

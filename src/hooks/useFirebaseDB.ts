@@ -210,7 +210,7 @@ export const useGallery = (userId?: string, limit = 100) => {
     };
 };
 
-export const useChatMessages = (limit = 100) => {
+export const useChatMessages = (roomId = 'general', limit = 100) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
@@ -218,25 +218,30 @@ export const useChatMessages = (limit = 100) => {
     const fetchMessages = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await chatDB.getAll(limit);
-            setMessages(data);
+            const data = await chatDB.getAll(roomId, limit);
+            setMessages(data.reverse()); // Show in chronological order for chat UI
             setError(null);
         } catch (err) {
+            console.error(`[useChatMessages] Error fetching messages for ${roomId}:`, err);
             setError(err as Error);
         } finally {
             setLoading(false);
         }
-    }, [limit]);
+    }, [roomId, limit]);
 
     const sendMessage = useCallback(async (messageData: ChatMessageCreate) => {
         try {
-            const created = await chatDB.create(messageData);
+            const created = await chatDB.create({
+                ...messageData,
+                room_id: messageData.room_id || roomId
+            });
             await fetchMessages();
             return { data: created, error: null };
         } catch (err) {
+            console.error(`[useChatMessages] Error sending message to ${roomId}:`, err);
             return { data: null, error: err as Error };
         }
-    }, [fetchMessages]);
+    }, [fetchMessages, roomId]);
 
     useEffect(() => {
         fetchMessages();

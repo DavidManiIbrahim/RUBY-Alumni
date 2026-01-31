@@ -278,8 +278,13 @@ export const chatDB = {
         } as unknown as ChatMessage;
     },
 
-    async getAll(maxItems = 100): Promise<ChatMessage[]> {
-        const q = query(collection(db, 'chat'), orderBy('created_at', 'desc'), limit(maxItems));
+    async getAll(roomId = 'general', maxItems = 100): Promise<ChatMessage[]> {
+        const q = query(
+            collection(db, 'chat'),
+            where('room_id', '==', roomId),
+            orderBy('created_at', 'desc'),
+            limit(maxItems)
+        );
         const snap = await getDocs(q);
         return snap.docs.map(doc => {
             const data = doc.data();

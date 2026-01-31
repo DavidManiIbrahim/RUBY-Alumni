@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send, MessageSquare, Loader2 } from 'lucide-react';
 import { useChatMessages, useProfiles } from '@/hooks/useFirebaseDB';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Chat() {
     const { user, profile } = useAuth();
@@ -15,8 +16,14 @@ export default function Chat() {
     const [newMessage, setNewMessage] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const { messages, loading: messagesLoading, sendMessage } = useChatMessages(activeRoom);
-    const { profiles } = useProfiles();
+    const { messages, loading: messagesLoading, error: messagesError, sendMessage } = useChatMessages(activeRoom);
+    const { profiles, error: profilesError } = useProfiles();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (messagesError) console.error('[Chat] Messages error:', messagesError);
+        if (profilesError) console.error('[Chat] Profiles error:', profilesError);
+    }, [messagesError, profilesError]);
 
     const authorProfilesMap = profiles.reduce((acc: any, p) => {
         acc[p.user_id] = p;
@@ -35,14 +42,16 @@ export default function Chat() {
         if (!newMessage.trim() || !user) return;
 
         try {
-            await sendMessage({
+            const { error } = await sendMessage({
                 user_id: user.id,
                 content: newMessage.trim(),
                 room_id: activeRoom,
             });
+            if (error) throw error;
             setNewMessage('');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to send message:", error);
+            toast({ title: 'Error', description: error.message || 'Failed to send message', variant: 'destructive' });
         }
     };
 

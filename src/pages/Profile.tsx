@@ -103,11 +103,17 @@ export default function Profile() {
       let imageUrl = previewUrl;
 
       if (selectedFile) {
+        console.log('[Profile] Attempting Cloudinary upload...');
         const { url, error: uploadError } = await cloudinary.upload(selectedFile);
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('[Profile] Cloudinary Upload Failed:', uploadError);
+          throw new Error(`Upload Failed: ${uploadError.message || 'Check your internet connection'}`);
+        }
         imageUrl = url;
+        console.log('[Profile] Cloudinary Upload Success:', url);
       }
 
+      console.log('[Profile] Updating Firestore...');
       await profileDB.update(user.id, {
         full_name: fullName,
         email_address: email,
@@ -121,11 +127,17 @@ export default function Profile() {
         course_studied: courseStudied,
         profile_picture_url: imageUrl,
       });
+      console.log('[Profile] Firestore Update Success');
 
       await refreshProfile();
       toast({ title: 'Profile updated', description: 'Your profile has been updated successfully.' });
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to update profile', variant: 'destructive' });
+      console.error('[Profile] Critical Error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update profile. Check console for details.',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
