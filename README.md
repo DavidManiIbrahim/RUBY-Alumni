@@ -50,7 +50,7 @@ A premium, exclusive alumni network platform designed for the graduates of **RUB
    npm install
    ```
 3. Configure Environment Variables:
-   Create a `.env` file in the root with the following:
+   Create a `.env` file in the root with your credentials (ensure no quotes around values):
    ```env
    VITE_FIREBASE_API_KEY=...
    VITE_FIREBASE_AUTH_DOMAIN=...
