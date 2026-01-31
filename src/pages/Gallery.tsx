@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth';
 import { Gem, Plus, Loader2, Trash2, Camera, Edit2, Eye, X } from 'lucide-react';
 import { useGallery, useProfiles } from '@/hooks/useFirebaseDB';
-import { firebaseStorage } from '@/lib/firebaseStorage';
+import { cloudinary } from '@/lib/cloudinary';
 
 export default function Gallery() {
     const { user, profile } = useAuth();
@@ -66,12 +66,12 @@ export default function Gallery() {
 
         try {
             for (const file of filesToUpload) {
-                const { data, error } = await firebaseStorage.upload('gallery', file, user.id);
+                const { url, error } = await cloudinary.upload(file);
                 if (error) throw error;
-                if (data) {
+                if (url) {
                     await createGalleryItem({
                         user_id: user.id,
-                        url: data.url,
+                        url: url,
                         caption: caption || null,
                         media_type: 'image',
                     });

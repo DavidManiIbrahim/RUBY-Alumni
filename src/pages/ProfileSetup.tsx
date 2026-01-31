@@ -13,7 +13,10 @@ import { Gem, Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { profileDB } from '@/lib/firebaseDB';
-import { firebaseStorage } from '@/lib/firebaseStorage';
+import { cloudinary } from '@/lib/cloudinary';
+import { NIGERIA_STATES } from '../lib/constants';
+
+console.log('NIGERIA_STATES loaded:', !!NIGERIA_STATES);
 
 type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
 
@@ -116,9 +119,9 @@ export default function ProfileSetup() {
       let profile_picture_url = previewUrl;
 
       if (selectedFile) {
-        const { data, error: uploadError } = await firebaseStorage.upload('profile-pictures', selectedFile, user.id);
+        const { url, error: uploadError } = await cloudinary.upload(selectedFile);
         if (uploadError) throw uploadError;
-        profile_picture_url = data?.url || null;
+        profile_picture_url = url;
       }
 
       const updatedProfile: any = {
@@ -264,7 +267,7 @@ export default function ProfileSetup() {
                 <Select value={currentLocation} onValueChange={setCurrentLocation}>
                   <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {["Lagos", "Abuja", "Rivers", "Kano", "Oyo", "Enugu", "Outside Nigeria"].map((state) => (
+                    {NIGERIA_STATES.map((state) => (
                       <SelectItem key={state} value={state}>{state}</SelectItem>
                     ))}
                   </SelectContent>

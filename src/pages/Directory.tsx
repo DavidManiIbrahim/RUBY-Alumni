@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, MapPin, GraduationCap, User, Filter, BookOpen } from 'lucide-react';
 
 import { useProfiles } from '@/hooks/useFirebaseDB';
+import { NIGERIA_STATES } from '../lib/constants';
 
 interface Profile {
   id: string;
@@ -28,6 +29,7 @@ export default function Directory() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [yearFilter, setYearFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
   const { profiles: allProfiles, loading: profilesLoading } = useProfiles();
@@ -59,6 +61,10 @@ export default function Directory() {
 
     if (yearFilter !== 'all') {
       filtered = filtered.filter(p => p.graduation_year === parseInt(yearFilter));
+    }
+
+    if (locationFilter !== 'all') {
+      filtered = filtered.filter(p => p.current_location === locationFilter);
     }
 
     setProfiles(filtered);
@@ -116,14 +122,28 @@ export default function Directory() {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={yearFilter} onValueChange={setYearFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by year" />
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Year" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
                 {years.map((year) => (
                   <SelectItem key={year} value={year.toString()}>
                     Class of {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="all">All Locations</SelectItem>
+                {NIGERIA_STATES.map((state) => (
+                  <SelectItem key={state} value={state}>
+                    {state}
                   </SelectItem>
                 ))}
               </SelectContent>

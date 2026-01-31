@@ -13,6 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Upload, User, Save, Image as ImageIcon, Trash2, Pencil, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { cloudinary } from '@/lib/cloudinary';
+import { profileDB } from '@/lib/firebaseDB';
+import { NIGERIA_STATES } from '../lib/constants';
+
+console.log('NIGERIA_STATES loaded in Profile:', !!NIGERIA_STATES);
 
 interface GalleryItem {
   id: string;
@@ -38,6 +43,7 @@ export default function Profile() {
   const [university, setUniversity] = useState('');
   const [courseStudied, setCourseStudied] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
@@ -83,40 +89,8 @@ export default function Profile() {
         toast({ title: 'File too large', description: 'Please select an image under 10MB', variant: 'destructive' });
         return;
       }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 400;
-          const MAX_HEIGHT = 400;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-          setPreviewUrl(compressedBase64);
-        };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -126,8 +100,15 @@ export default function Profile() {
     setIsLoading(true);
 
     try {
-      const updatedProfile = {
-        ...profile,
+      let imageUrl = previewUrl;
+
+      if (selectedFile) {
+        const { url, error: uploadError } = await cloudinary.upload(selectedFile);
+        if (uploadError) throw uploadError;
+        imageUrl = url;
+      }
+
+      await profileDB.update(user.id, {
         full_name: fullName,
         email_address: email,
         graduation_year: parseInt(graduationYear),
@@ -138,14 +119,8 @@ export default function Profile() {
         bio: bio,
         university: university,
         course_studied: courseStudied,
-        profile_picture_url: previewUrl,
-      };
-
-      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-      const index = profiles.findIndex((p: any) => p.user_id === user.id);
-      if (index > -1) profiles[index] = updatedProfile;
-      localStorage.setItem('ruby_profiles', JSON.stringify(profiles));
-      localStorage.setItem('ruby_profile', JSON.stringify(updatedProfile));
+        profile_picture_url: imageUrl,
+      });
 
       await refreshProfile();
       toast({ title: 'Profile updated', description: 'Your profile has been updated successfully.' });
@@ -284,7 +259,14 @@ export default function Profile() {
 
                   <div className="space-y-2">
                     <Label htmlFor="currentLocation">Current Location</Label>
-                    <Input id="currentLocation" value={currentLocation} onChange={(e) => setCurrentLocation(e.target.value)} />
+                    <Select value={currentLocation} onValueChange={setCurrentLocation}>
+                      <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {NIGERIA_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>{state}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

@@ -20,7 +20,7 @@ A premium, exclusive alumni network platform designed for the graduates of **RUB
 - **Real-time Streaming**: Instant AI responses with a premium glassmorphic chat interface.
 
 ### 📑 **Alumni Directory & Synergy**
-- **Dynamic Search**: Find classmates by graduation year, location, or name.
+- **Dynamic Search**: Find classmates by graduation year, Nigerian state, or name.
 - **Global Reach**: Connect with the elite RUBY network across the world.
 - **Real-time Announcements**: Stay updated with official leadership communiqués.
 
