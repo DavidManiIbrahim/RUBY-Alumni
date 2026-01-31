@@ -96,7 +96,7 @@ function AppContent() {
   }, [user, location.pathname]);
 
   // Show chatbot only for authenticated users and not on landing/auth pages
-  const showChatbot = user && location.pathname !== '/' && location.pathname !== '/auth';
+  const showChatbot = false; // user && location.pathname !== '/' && location.pathname !== '/auth';
 
   return (
     <>

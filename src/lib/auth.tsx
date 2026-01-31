@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
   User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from './firebase';
@@ -40,6 +42,7 @@ interface AuthContextType {
   isProfileComplete: boolean;
   hasFetchedProfile: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, isAdmin?: boolean) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -116,6 +119,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const { user: firebaseUser } = await signInWithPopup(auth, provider);
+
+      // Check if profile exists, if not create one
+      const existingProfile = await profileDB.getByUserId(firebaseUser.uid);
+
+      if (!existingProfile) {
+        const newProfile = {
+          user_id: firebaseUser.uid,
+          full_name: firebaseUser.displayName || '',
+          email_address: firebaseUser.email || '',
+          profile_picture_url: firebaseUser.photoURL || null,
+          approval_status: 'pending',
+          is_complete: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        await profileDB.create(newProfile);
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  };
+
   const signUp = async (email: string, password: string, fullName: string, isAdmin: boolean = false) => {
     try {
       const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
@@ -166,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isProfileComplete,
         hasFetchedProfile,
         signIn,
+        signInWithGoogle,
         signUp,
         resetPassword,
         signOut,

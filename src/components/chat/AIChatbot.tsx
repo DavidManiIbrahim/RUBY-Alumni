@@ -7,12 +7,15 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "model"; content: string };
 
-const CHAT_URL = "#"; // Supabase Removed - Placeholder for now
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API;
+const GEMINI_MODEL = "gemini-1.5-flash"; // Stable model alias
+const CHAT_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
 async function streamChat({
   messages,
+  sessionToken,
   onDelta,
   onDone,
   onError,
@@ -28,27 +31,50 @@ async function streamChat({
       throw new Error("Please sign in to use the chat assistant");
     }
 
-    if (CHAT_URL === "#") {
-      // Fallback for demo mode
+    if (!GEMINI_API_KEY) {
       setTimeout(() => {
-        onDelta("I am the RUBY Concierge. Since the backend connection is currently disabled for this demo, I can only provide this simulated response. How can I assist you with the RUBY network?");
+        onDelta("I am the RUBY Concierge. Gemini API key is not configured. Please check your .env file.");
         onDone();
       }, 1000);
       return;
     }
 
+    // Move logic to "contents" for maximum compatibility
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: "Instructions: You are the RUBY Concierge, a helpful assistant for the RUBY network (AirForce Comprehensive School Yola Ex Airborne Alumni). You help alumni connect, find information about the association, and navigate the platform. Be professional, warm, and helpful. Keep responses concise and relevant to the alumni community." }]
+      },
+      {
+        role: "model",
+        parts: [{ text: "Understood. I am the RUBY Concierge, ready to assist our Ex Airborne alumni. How can I help you today?" }]
+      },
+      ...messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.content }]
+      }))
+    ];
+
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${sessionToken}`,
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({
+        contents: contents,
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      }),
     });
 
     if (!resp.ok) {
       const errorData = await resp.json().catch(() => ({}));
-      throw new Error(errorData.error || `Request failed: ${resp.status}`);
+      const errorMessage = errorData.error?.message || `Request failed: ${resp.status}`;
+      throw new Error(errorMessage);
     }
 
     if (!resp.body) throw new Error("No response body");
@@ -56,52 +82,27 @@ async function streamChat({
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let textBuffer = "";
-    let streamDone = false;
 
-    while (!streamDone) {
+    while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       textBuffer += decoder.decode(value, { stream: true });
 
-      let newlineIndex: number;
-      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-        let line = textBuffer.slice(0, newlineIndex);
-        textBuffer = textBuffer.slice(newlineIndex + 1);
+      let lineIndex;
+      while ((lineIndex = textBuffer.indexOf("\n")) !== -1) {
+        let line = textBuffer.slice(0, lineIndex).trim();
+        textBuffer = textBuffer.slice(lineIndex + 1);
 
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (line.startsWith(":") || line.trim() === "") continue;
-        if (!line.startsWith("data: ")) continue;
-
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === "[DONE]") {
-          streamDone = true;
-          break;
+        if (line.startsWith("data: ")) {
+          try {
+            const jsonStr = line.slice(6);
+            const data = JSON.parse(jsonStr);
+            const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (content) onDelta(content);
+          } catch (e) {
+            console.error("Error parsing SSE line:", e);
+          }
         }
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) onDelta(content);
-        } catch {
-          textBuffer = line + "\n" + textBuffer;
-          break;
-        }
-      }
-    }
-
-    if (textBuffer.trim()) {
-      for (let raw of textBuffer.split("\n")) {
-        if (!raw) continue;
-        if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-        if (raw.startsWith(":") || raw.trim() === "") continue;
-        if (!raw.startsWith("data: ")) continue;
-        const jsonStr = raw.slice(6).trim();
-        if (jsonStr === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-          if (content) onDelta(content);
-        } catch { }
       }
     }
 
@@ -149,10 +150,10 @@ export function AIChatbot() {
       assistantSoFar += nextChunk;
       setMessages(prev => {
         const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
+        if (last?.role === "model") {
           return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
         }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
+        return [...prev, { role: "model", content: assistantSoFar }];
       });
     };
 
@@ -234,7 +235,7 @@ export function AIChatbot() {
                     msg.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  {msg.role === "assistant" && (
+                  {msg.role === "model" && (
                     <div className="flex-shrink-0 h-8 w-8 rounded-full bg-ruby/10 flex items-center justify-center">
                       <Gem className="h-4 w-4 text-ruby" />
                     </div>
@@ -256,7 +257,7 @@ export function AIChatbot() {
                   )}
                 </div>
               ))}
-              {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+              {isLoading && messages[messages.length - 1]?.role !== "model" && (
                 <div className="flex gap-2 justify-start">
                   <div className="flex-shrink-0 h-8 w-8 rounded-full bg-ruby/10 flex items-center justify-center">
                     <Gem className="h-4 w-4 text-ruby animate-pulse" />
