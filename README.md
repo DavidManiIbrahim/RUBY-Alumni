@@ -70,5 +70,8 @@ A premium, exclusive alumni network platform designed for the graduates of **RUB
 ## 🔒 Security & Privacy
 RUBY is designed with privacy in mind. Media ownership is strictly enforced, and the member directory is only accessible to verified alumni.
 
+#admin
+admin recovery pin = 7788
+
 ---
 *Built for the RUBY Elite.*
