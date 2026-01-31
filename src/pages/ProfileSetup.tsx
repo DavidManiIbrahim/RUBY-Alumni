@@ -143,7 +143,8 @@ export default function ProfileSetup() {
         course_studied: courseStudied,
         profile_picture_url,
         is_complete: true,
-        approval_status: 'approved'
+        approval_status: 'approved',
+        isAdmin: (profile as any)?.isAdmin || false // Preserve admin status
       };
 
       console.log('[ProfileSetup] Saving to Firestore...');

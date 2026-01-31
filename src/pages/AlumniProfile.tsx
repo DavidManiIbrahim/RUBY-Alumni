@@ -7,31 +7,38 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, MapPin, GraduationCap, Phone, User, Calendar, Briefcase, Mail, BookOpen } from 'lucide-react';
+import { profileDB, galleryDB } from '@/lib/firebaseDB';
 
 export default function AlumniProfile() {
   const { id } = useParams<{ id: string }>();
-  const { user, loading } = useAuth();
+  const { profile: loggedInProfile, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [galleryItems, setGalleryItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) navigate('/auth');
-  }, [user, loading, navigate]);
+    if (!authLoading && !user) navigate('/auth');
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    const fetchData = () => {
+    const fetchData = async () => {
+      if (!id) return;
       setIsLoading(true);
-      const profiles = JSON.parse(localStorage.getItem('ruby_profiles') || '[]');
-      const found = profiles.find((p: any) => p.id === id || p.user_id === id);
-      setProfile(found);
-
-      if (found) {
-        const gallery = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-        setGalleryItems(gallery.filter((i: any) => i.user_id === found.user_id));
+      try {
+        const found = await profileDB.getByUserId(id);
+        if (found) {
+          setProfile(found);
+          const gallery = await galleryDB.getByUserId(id);
+          setGalleryItems(gallery);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error("Error fetching alumni profile:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchData();
   }, [id]);
@@ -43,7 +50,7 @@ export default function AlumniProfile() {
     return name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  if (loading || isLoading) {
+  if (authLoading || isLoading) {
     return (
       <Layout showFooter={false}>
         <div className="container py-12 flex items-center justify-center min-h-[60vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
@@ -106,7 +113,7 @@ export default function AlumniProfile() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {galleryItems.map((item) => (
                 <div key={item.id} className="relative aspect-video rounded-lg overflow-hidden border shadow-sm group bg-muted">
-                  <img src={item.image_url} alt={item.caption || 'Gallery'} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  <img src={item.url} alt={item.caption || 'Gallery'} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                   {item.caption && (<div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><p className="text-white text-sm truncate">{item.caption}</p></div>)}
                 </div>
               ))}

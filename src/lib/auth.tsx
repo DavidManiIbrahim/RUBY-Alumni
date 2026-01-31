@@ -46,6 +46,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, isAdmin?: boolean) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -181,6 +182,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const fetchProfile = async (uid: string) => {
+    try {
+      const userProfile = await profileDB.getByUserId(uid);
+      if (userProfile) {
+        const adaptedProfile: Profile = {
+          user_id: uid,
+          full_name: userProfile.full_name,
+          email_address: userProfile.email_address || auth.currentUser?.email || '',
+          profile_picture_url: userProfile.profile_picture_url,
+          bio: userProfile.bio,
+          graduation_year: userProfile.graduation_year,
+          phone_number: userProfile.phone_number,
+          current_location: userProfile.current_location,
+          position_held: userProfile.position_held,
+          approval_status: userProfile.approval_status,
+          is_complete: !!(userProfile.full_name && userProfile.graduation_year),
+        };
+        setProfile(adaptedProfile);
+
+        if ((userProfile as any).role) {
+          setUser(prev => prev ? { ...prev, role: (userProfile as any).role } : null);
+        } else if (adaptedProfile.approval_status === 'approved' && (userProfile as any).isAdmin) {
+          setUser(prev => prev ? { ...prev, role: 'admin' } : null);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchProfile(user.id);
+    }
+  };
+
   const signOut = async () => {
     await firebaseSignOut(auth);
   };
@@ -202,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         resetPassword,
         signOut,
+        refreshProfile,
       }}
     >
       {children}

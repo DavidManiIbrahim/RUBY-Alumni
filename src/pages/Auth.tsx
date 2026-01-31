@@ -425,22 +425,6 @@ export default function Auth() {
                   </div>
                 )}
 
-                {mode === 'signup' && (
-                  <div className="flex items-center space-x-2 pb-2">
-                    <Checkbox
-                      id="isAdminAccount"
-                      checked={isAdminAccount}
-                      onCheckedChange={(checked) => setIsAdminAccount(checked === true)}
-                    />
-                    <Label
-                      htmlFor="isAdminAccount"
-                      className="text-sm font-medium leading-none cursor-pointer"
-                    >
-                      Sign up as Administrator
-                    </Label>
-                  </div>
-                )}
-
                 <Button
                   type="submit"
                   className="w-full"

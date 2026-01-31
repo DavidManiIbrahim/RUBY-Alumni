@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileDB, announcementDB, galleryDB, chatDB } from '@/lib/firebaseDB';
 import type {
     Profile,
@@ -15,243 +14,178 @@ import type {
     ChatMessageCreate,
 } from '@/lib/redisTypes';
 
+// --- Profile Hooks ---
+
 export const useProfile = (userId: string | null) => {
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchProfile = useCallback(async () => {
-        if (!userId) {
-            setLoading(false);
-            return;
-        }
+    const { data: profile, isLoading: loading, error, refetch } = useQuery({
+        queryKey: ['profile', userId],
+        queryFn: async () => {
+            if (!userId) return null;
+            return await profileDB.getByUserId(userId);
+        },
+        enabled: !!userId,
+    });
 
-        try {
-            setLoading(true);
-            const data = await profileDB.getByUserId(userId);
-            setProfile(data);
-            setError(null);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userId]);
+    const updateProfileMutation = useMutation({
+        mutationFn: async (updates: ProfileUpdate) => {
+            if (!userId) throw new Error('No user ID');
+            return await profileDB.update(userId, updates);
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['profile', userId], data);
+            queryClient.invalidateQueries({ queryKey: ['profiles'] });
+        },
+    });
 
-    const updateProfile = useCallback(async (updates: ProfileUpdate) => {
-        if (!userId) return { error: new Error('No user ID') };
-
-        try {
-            const updated = await profileDB.update(userId, updates);
-            setProfile(updated);
-            return { data: updated, error: null };
-        } catch (err) {
-            return { data: null, error: err as Error };
-        }
-    }, [userId]);
-
-    useEffect(() => {
-        fetchProfile();
-    }, [fetchProfile]);
-
-    return { profile, loading, error, refetch: fetchProfile, updateProfile };
+    return {
+        profile: profile || null,
+        loading,
+        error: error as Error | null,
+        refetch,
+        updateProfile: updateProfileMutation.mutateAsync
+    };
 };
 
 export const useProfiles = (filters?: ProfileFilters) => {
-    const [profiles, setProfiles] = useState<Profile[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    const { data: profiles, isLoading: loading, error, refetch } = useQuery({
+        queryKey: ['profiles', filters],
+        queryFn: async () => {
+            return await profileDB.getAll(filters);
+        },
+    });
 
-    const fetchProfiles = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await profileDB.getAll(filters);
-            setProfiles(data);
-            setError(null);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setLoading(false);
-        }
-    }, [filters?.approval_status, filters?.graduation_year]);
-
-    useEffect(() => {
-        fetchProfiles();
-    }, [fetchProfiles]);
-
-    return { profiles, loading, error, refetch: fetchProfiles };
+    return {
+        profiles: profiles || [],
+        loading,
+        error: error as Error | null,
+        refetch
+    };
 };
+
+// --- Announcement Hooks ---
 
 export const useAnnouncements = (limit = 100) => {
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchAnnouncements = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await announcementDB.getAll(limit);
-            setAnnouncements(data);
-            setError(null);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setLoading(false);
-        }
-    }, [limit]);
+    const { data: announcements, isLoading: loading, error, refetch } = useQuery({
+        queryKey: ['announcements', limit],
+        queryFn: async () => {
+            return await announcementDB.getAll(limit);
+        },
+    });
 
-    const createAnnouncement = useCallback(async (announcementData: AnnouncementCreate) => {
-        try {
-            const created = await announcementDB.create(announcementData);
-            await fetchAnnouncements();
-            return { data: created, error: null };
-        } catch (err) {
-            return { data: null, error: err as Error };
-        }
-    }, [fetchAnnouncements]);
+    const createMutation = useMutation({
+        mutationFn: (data: AnnouncementCreate) => announcementDB.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['announcements'] });
+        },
+    });
 
-    const updateAnnouncement = useCallback(async (id: string, updates: AnnouncementUpdate) => {
-        try {
-            const updated = await announcementDB.update(id, updates);
-            await fetchAnnouncements();
-            return { data: updated, error: null };
-        } catch (err) {
-            return { data: null, error: err as Error };
-        }
-    }, [fetchAnnouncements]);
+    const updateMutation = useMutation({
+        mutationFn: ({ id, updates }: { id: string; updates: AnnouncementUpdate }) =>
+            announcementDB.update(id, updates),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['announcements'] });
+        },
+    });
 
-    const deleteAnnouncement = useCallback(async (id: string) => {
-        try {
-            await announcementDB.delete(id);
-            await fetchAnnouncements();
-            return { error: null };
-        } catch (err) {
-            return { error: err as Error };
-        }
-    }, [fetchAnnouncements]);
-
-    useEffect(() => {
-        fetchAnnouncements();
-    }, [fetchAnnouncements]);
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => announcementDB.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['announcements'] });
+        },
+    });
 
     return {
-        announcements,
+        announcements: announcements || [],
         loading,
-        error,
-        refetch: fetchAnnouncements,
-        createAnnouncement,
-        updateAnnouncement,
-        deleteAnnouncement,
+        error: error as Error | null,
+        refetch,
+        createAnnouncement: createMutation.mutateAsync,
+        updateAnnouncement: (id: string, updates: AnnouncementUpdate) =>
+            updateMutation.mutateAsync({ id, updates }),
+        deleteAnnouncement: deleteMutation.mutateAsync,
     };
 };
+
+// --- Gallery Hooks ---
 
 export const useGallery = (userId?: string, limit = 100) => {
-    const [gallery, setGallery] = useState<GalleryItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchGallery = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = userId
+    const { data: gallery, isLoading: loading, error, refetch } = useQuery({
+        queryKey: ['gallery', userId, limit],
+        queryFn: async () => {
+            return userId
                 ? await galleryDB.getByUserId(userId)
                 : await galleryDB.getAll(limit);
-            setGallery(data);
-            setError(null);
-        } catch (err) {
-            setError(err as Error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userId, limit]);
+        },
+    });
 
-    const createGalleryItem = useCallback(async (itemData: GalleryItemCreate) => {
-        try {
-            const created = await galleryDB.create(itemData);
-            await fetchGallery();
-            return { data: created, error: null };
-        } catch (err) {
-            return { data: null, error: err as Error };
-        }
-    }, [fetchGallery]);
+    const createGalleryItemMutation = useMutation({
+        mutationFn: (data: GalleryItemCreate) => galleryDB.create(data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['gallery'] });
+        },
+    });
 
-    const updateGalleryItem = useCallback(async (id: string, updates: GalleryItemUpdate) => {
-        try {
-            const updated = await galleryDB.update(id, updates);
-            await fetchGallery();
-            return { data: updated, error: null };
-        } catch (err) {
-            return { data: null, error: err as Error };
-        }
-    }, [fetchGallery]);
+    const updateGalleryItemMutation = useMutation({
+        mutationFn: ({ id, updates }: { id: string; updates: GalleryItemUpdate }) =>
+            galleryDB.update(id, updates),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['gallery'] });
+        },
+    });
 
-    const deleteGalleryItem = useCallback(async (id: string) => {
-        try {
-            await galleryDB.delete(id);
-            await fetchGallery();
-            return { error: null };
-        } catch (err) {
-            return { error: err as Error };
-        }
-    }, [fetchGallery]);
-
-    useEffect(() => {
-        fetchGallery();
-    }, [fetchGallery]);
+    const deleteGalleryItemMutation = useMutation({
+        mutationFn: (id: string) => galleryDB.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['gallery'] });
+        },
+    });
 
     return {
-        gallery,
+        gallery: gallery || [],
         loading,
-        error,
-        refetch: fetchGallery,
-        createGalleryItem,
-        updateGalleryItem,
-        deleteGalleryItem,
+        error: error as Error | null,
+        refetch,
+        createGalleryItem: createGalleryItemMutation.mutateAsync,
+        updateGalleryItem: (id: string, updates: GalleryItemUpdate) =>
+            updateGalleryItemMutation.mutateAsync({ id, updates }),
+        deleteGalleryItem: deleteGalleryItemMutation.mutateAsync,
     };
 };
 
+// --- Chat Hooks ---
+
 export const useChatMessages = (roomId = 'general', limit = 100) => {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+    const queryClient = useQueryClient();
 
-    const fetchMessages = useCallback(async () => {
-        try {
-            setLoading(true);
+    const { data: messages, isLoading: loading, error, refetch } = useQuery({
+        queryKey: ['chat', roomId, limit],
+        queryFn: async () => {
             const data = await chatDB.getAll(roomId, limit);
-            setMessages(data.reverse()); // Show in chronological order for chat UI
-            setError(null);
-        } catch (err) {
-            console.error(`[useChatMessages] Error fetching messages for ${roomId}:`, err);
-            setError(err as Error);
-        } finally {
-            setLoading(false);
-        }
-    }, [roomId, limit]);
+            return data.reverse();
+        },
+    });
 
-    const sendMessage = useCallback(async (messageData: ChatMessageCreate) => {
-        try {
-            const created = await chatDB.create({
-                ...messageData,
-                room_id: messageData.room_id || roomId
-            });
-            await fetchMessages();
-            return { data: created, error: null };
-        } catch (err) {
-            console.error(`[useChatMessages] Error sending message to ${roomId}:`, err);
-            return { data: null, error: err as Error };
-        }
-    }, [fetchMessages, roomId]);
-
-    useEffect(() => {
-        fetchMessages();
-    }, [fetchMessages]);
+    const sendMutation = useMutation({
+        mutationFn: (data: ChatMessageCreate) => chatDB.create({
+            ...data,
+            room_id: data.room_id || roomId
+        }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat', roomId] });
+        },
+    });
 
     return {
-        messages,
+        messages: messages || [],
         loading,
-        error,
-        refetch: fetchMessages,
-        sendMessage,
+        error: error as Error | null,
+        refetch,
+        sendMessage: sendMutation.mutateAsync,
     };
 };

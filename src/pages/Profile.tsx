@@ -10,22 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Upload, User, Save, Image as ImageIcon, Trash2, Pencil, Plus } from 'lucide-react';
+import { Loader2, Upload, User, Save, Image as ImageIcon, Trash2, Pencil, Plus, ShieldCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cloudinary } from '@/lib/cloudinary';
 import { profileDB } from '@/lib/firebaseDB';
+import { useGallery } from '@/hooks/useFirebaseDB';
+import { GalleryItem } from '@/lib/redisTypes';
 import { NIGERIA_STATES } from '../lib/constants';
 
 console.log('NIGERIA_STATES loaded in Profile:', !!NIGERIA_STATES);
 
-interface GalleryItem {
-  id: string;
-  user_id: string;
-  image_url: string;
-  caption: string | null;
-  created_at: string;
-}
+
 
 export default function Profile() {
   const { user, loading, profile, refreshProfile } = useAuth();
@@ -45,11 +41,13 @@ export default function Profile() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [adminCode, setAdminCode] = useState('');
+  const [deleteGalleryId, setDeleteGalleryId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
   const [editCaption, setEditCaption] = useState('');
   const [isEditGalleryOpen, setIsEditGalleryOpen] = useState(false);
-  const [deleteGalleryId, setDeleteGalleryId] = useState<string | null>(null);
+
+  const { gallery: userGallery, updateGalleryItem, deleteGalleryItem } = useGallery(user?.id || undefined);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 1950 + 6 }, (_, i) => currentYear + 5 - i);
@@ -71,14 +69,6 @@ export default function Profile() {
       setUniversity(profile.university || '');
       setCourseStudied(profile.course_studied || '');
       setPreviewUrl(profile.profile_picture_url || null);
-    }
-
-    if (user) {
-      const storedGallery = localStorage.getItem('ruby_gallery');
-      if (storedGallery) {
-        const items = JSON.parse(storedGallery);
-        setGalleryItems(items.filter((i: any) => i.user_id === user.id));
-      }
     }
   }, [profile, user]);
 
@@ -143,27 +133,43 @@ export default function Profile() {
     }
   };
 
-  const handleUpdateGallery = () => {
+  const handleUpdateGallery = async () => {
     if (!editingItem) return;
-    const allItems = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-    const index = allItems.findIndex((i: any) => i.id === editingItem.id);
-    if (index > -1) {
-      allItems[index].caption = editCaption;
-      localStorage.setItem('ruby_gallery', JSON.stringify(allItems));
-      setGalleryItems(allItems.filter((i: any) => i.user_id === user?.id));
+    try {
+      await updateGalleryItem(editingItem.id, { caption: editCaption });
       setIsEditGalleryOpen(false);
       toast({ title: 'Caption updated' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
-  const handleDeleteGallery = () => {
+  const handleDeleteGallery = async () => {
     if (!deleteGalleryId) return;
-    const allItems = JSON.parse(localStorage.getItem('ruby_gallery') || '[]');
-    const filtered = allItems.filter((i: any) => i.id !== deleteGalleryId);
-    localStorage.setItem('ruby_gallery', JSON.stringify(filtered));
-    setGalleryItems(filtered.filter((i: any) => i.user_id === user?.id));
-    setDeleteGalleryId(null);
-    toast({ title: 'Photo deleted' });
+    try {
+      await deleteGalleryItem(deleteGalleryId);
+      setDeleteGalleryId(null);
+      toast({ title: 'Photo deleted' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handlePromoteAdmin = async () => {
+    if (adminCode === '7788') {
+      setIsLoading(true);
+      try {
+        await profileDB.update(user!.id, { isAdmin: true } as any);
+        toast({ title: 'Success', description: 'Admin status restored! Refreshing...' });
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (error: any) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      toast({ title: 'Invalid code', variant: 'destructive' });
+    }
   };
 
   const getInitials = (name: string) => {
@@ -297,10 +303,10 @@ export default function Profile() {
 
           <TabsContent value="gallery">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {galleryItems.map((item) => (
+              {userGallery.map((item) => (
                 <Card key={item.id} className="overflow-hidden group">
                   <div className="relative aspect-video">
-                    <img src={item.image_url} alt={item.caption || 'Gallery'} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={item.url} alt={item.caption || 'Gallery'} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <Button variant="secondary" size="icon" onClick={() => { setEditingItem(item); setEditCaption(item.caption || ''); setIsEditGalleryOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="destructive" size="icon" onClick={() => setDeleteGalleryId(item.id)}><Trash2 className="h-4 w-4" /></Button>
