@@ -133,7 +133,7 @@ export default function Gallery() {
                         <DialogContent className="sm:max-w-md">
                             <DialogHeader>
                                 <DialogTitle>Upload Media</DialogTitle>
-                                <DialogDescription>Share a moment with the AFCS community.</DialogDescription>
+                                <DialogDescription>Share a moment with the RUBY community.</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 {previews.length === 0 ? (

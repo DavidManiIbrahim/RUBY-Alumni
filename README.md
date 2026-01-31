@@ -1,140 +1,74 @@
-# WOSA - Alumni Community Platform
+# RUBY - The Elite Alumni Network
 
-An exclusive alumni network platform connecting past students to share memories, communicate in real-time, and stay connected with their school community.
+A premium, exclusive alumni network platform designed for the graduates of **RUBY College**. RUBY provides a high-end space to reconnect, share legacy memories, and synergize professionally.
 
-## Features & Functionality
+## 🚀 Key Features
 
-### 🔐 **Authentication & Profiles**
-- Email-based authentication with verification
-- Google OAuth integration for quick sign-up
-- Customizable alumni profiles with profile pictures
-- Educational background information (graduation year, position)
-- Profile setup wizard for new users
+### 🔐 **Elite Authentication & Profiles**
+- **Dual Auth System**: Standard email authentication and secure **Google OAuth** integration.
+- **Profile Excellence**: Mandatory profile setup for all alumni ensuring data integrity.
+- **Verification Loop**: Role-based access with approval workflows for new members.
 
-### 💬 **Real-Time Messaging**
-- **WebSocket-powered chat** using Supabase Realtime for instant messaging
-- Class-based chat rooms organized by graduation year
-- General alumni chat channel
-- Real-time message delivery with no polling overhead
-- User presence and typing indicators
-- Profile information displayed with each message
+### 🖼️ **Legacy Gallery**
+- **High-Performance Media**: Powered by **Cloudinary** for lightning-fast image/video delivery.
+- **Bulk Operations**: Upload entire class memories at once with drag-and-drop.
+- **Smart Filtering**: Categorize media by "Public", "My Class Set", or "Memories".
 
-### 📸 **Memory Gallery**
-- **Bulk image/video uploads** - Upload multiple photos and videos at once
-- Drag-and-drop file upload with preview
-- Support for images (JPG, PNG, etc.) and videos (MP4, WebM, etc.)
-- Captions for all media with edit functionality
-- **Caption editing** - Edit captions after upload (owner-only)
-- Image deletion (owner-only)
-- Image lazy loading for performance
-- Beautiful grid layout with hover effects
-- File size validation (up to 30MB per file)
+### 🤖 **RUBY Concierge (AI Assistant)**
+- **Gemini Powered**: Integrated with **Google Gemini 1.5 Flash** for intelligent assistance.
+- **Alumni Specialization**: Specifically trained to help users navigate the network, find classmates, and understand association goals.
+- **Real-time Streaming**: Instant AI responses with a premium glassmorphic chat interface.
 
-### 📑 **Alumni Directory**
-- Searchable alumni database
-- Filter by graduation year and other criteria
-- View alumni profiles and connect with classmates
+### 📑 **Alumni Directory & Synergy**
+- **Dynamic Search**: Find classmates by graduation year, location, or name.
+- **Global Reach**: Connect with the elite RUBY network across the world.
+- **Real-time Announcements**: Stay updated with official leadership communiqués.
 
-### 📢 **Announcements**
-- Official announcements feed
-- Important updates from alumni leadership
-- Timestamped posts with rich content
+## 🛠️ Tech Stack
 
-### 👥 **Admin Dashboard**
-- Admin-only management panel
-- User management capabilities
-- Content moderation tools
-- Analytics and monitoring
+- **Frontend**: [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- **Backend-as-a-Service**: [Firebase](https://firebase.google.com/) (Firestore, Auth, Storage)
+- **Media Management**: [Cloudinary](https://cloudinary.com/) (CDN-based image processing)
+- **AI Intelligence**: [Google Gemini 1.5 API](https://ai.google.dev/)
+- **State Management**: [TanStack Query](https://tanstack.com/query) (React Query)
+- **Deployment**: [Vercel](https://vercel.com/)
 
-### 🎯 **Additional Features**
-- **Email verification** - Ensures authentic alumni accounts
-- **Role-based access control** - Different permissions for users and admins
-- **Event logging & analytics** - Tracks user interactions for insights
-- **Responsive design** - Works seamlessly on desktop, tablet, and mobile
-- **Dark mode support** - Beautiful UI with Tailwind CSS
-- **Toast notifications** - Real-time feedback for user actions
+## 💻 Getting Started
 
-## Tech Stack
+### Prerequisites
+- Node.js 18+
+- npm or bun
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **UI Components**: shadcn/ui components library
-- **Styling**: Tailwind CSS + PostCSS
-- **Real-time**: Supabase Realtime (WebSockets)
-- **Backend**: Supabase (PostgreSQL, Authentication, Storage)
-- **Caching**: Redis for optimized performance and reduced database load
-- **File Storage**: Supabase Storage for images/videos
-- **Testing**: Vitest
-- **Linting**: ESLint
-- **Deployment**: Vercel
+### Setup
+1. Clone the repository:
+   ```sh
+   git clone <repository-url>
+   ```
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Configure Environment Variables:
+   Create a `.env` file in the root with the following:
+   ```env
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   VITE_CLOUDINARY_CLOUD_NAME=...
+   VITE_CLOUDINARY_UPLOAD_PRESET=...
+   VITE_GEMINI_API=...
+   ```
+4. Run Development Server:
+   ```sh
+   npm run dev
+   ```
 
-## Project info
+## 🔒 Security & Privacy
+RUBY is designed with privacy in mind. Media ownership is strictly enforced, and the member directory is only accessible to verified alumni.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+*Built for the RUBY Elite.*

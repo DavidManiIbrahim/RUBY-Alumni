@@ -43,11 +43,11 @@ async function streamChat({
     const contents = [
       {
         role: "user",
-        parts: [{ text: "Instructions: You are the RUBY Concierge, a helpful assistant for the RUBY network (AirForce Comprehensive School Yola Ex Airborne Alumni). You help alumni connect, find information about the association, and navigate the platform. Be professional, warm, and helpful. Keep responses concise and relevant to the alumni community." }]
+        parts: [{ text: "Instructions: You are the RUBY Concierge, a helpful assistant for the RUBY network (RUBY College Alumni). You help alumni connect, find information about the association, and navigate the platform. Be professional, warm, and helpful. Keep responses concise and relevant to the alumni community." }]
       },
       {
         role: "model",
-        parts: [{ text: "Understood. I am the RUBY Concierge, ready to assist our Ex Airborne alumni. How can I help you today?" }]
+        parts: [{ text: "Understood. I am the RUBY Concierge, ready to assist our RUBY alumni. How can I help you today?" }]
       },
       ...messages.map(m => ({
         role: m.role,

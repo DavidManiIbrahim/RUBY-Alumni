@@ -99,7 +99,7 @@ export default function Directory() {
         <div className="mb-8">
           <h1 className="font-display text-3xl lg:text-4xl font-bold mb-2">Alumni Directory</h1>
           <p className="text-muted-foreground">
-            Connect with fellow alumni from AFCS
+            Connect with your fellow alumni
           </p>
         </div>
 
